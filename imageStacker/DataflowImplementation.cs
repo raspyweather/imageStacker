@@ -77,7 +77,8 @@ namespace imageStacker
 
             // Read from the source buffer until the source buffer has no 
             // available output data.
-            while (await source.OutputAvailableAsync())
+             
+            while (await source.OutputAvailableAsync()&& !source.Completion.IsCompleted)
             {
                 byte[] data = source.Receive();
                 if (data.Length != bmp1Bytes.Length)
@@ -94,6 +95,7 @@ namespace imageStacker
                         bmp1Bytes[i] = data[i];
                     }
                 }
+                Console.WriteLine(bmp1Bytes.Count(x => x > 0));
                 // Increment the count of bytes received.
                 bytesProcessed += data.Length;
             }
