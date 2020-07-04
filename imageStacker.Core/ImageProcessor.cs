@@ -33,7 +33,6 @@ namespace imageStacker.Core
             inputFinishedToken = new CancellationTokenSource(),
             outputFinishedToken = new CancellationTokenSource();
 
-
         protected async Task ReadingThread(IImageReader reader)
         {
             await reader.Produce(inputQueue);
@@ -94,6 +93,8 @@ namespace imageStacker.Core
 
     public class StackAllStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
     {
+        private const int tasksCount = 4;
+
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
             IProcessableImage firstData = await GetFirstImage();
@@ -104,7 +105,7 @@ namespace imageStacker.Core
 
             while (true)
             {
-                while (tasks.Count > 10)
+                while (tasks.Count > tasksCount)
                 {
                     await Task.WhenAny(tasks);
                 }
@@ -132,6 +133,42 @@ namespace imageStacker.Core
             Console.WriteLine("all tasks done");
             baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
         }
+    }
+
+    public class StackAllSimpleStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
+    {
+        protected override async Task ProcessingThread(List<IFilter> filters)
+        {
+            IProcessableImage firstData = await GetFirstImage();
+            var firstMutableImage = MutableImage.FromProcessableImage(firstData);
+            var baseImages = filters.Select((filter, index) => (filter, image: firstMutableImage.Clone(), index)).ToList();
+
+            while (true)
+            {
+                if (!inputQueue.TryDequeue(out var nextImage))
+                {
+                    if (inputFinishedToken.IsCancellationRequested)
+                    {
+                        Console.WriteLine("cancellation requested");
+                        break;
+                    }
+                    await Task.Delay(100);
+                    await Task.Yield();
+                    continue;
+                }
+
+                foreach (var item in baseImages)
+                {
+                    foreach (var filter in filters)
+                    {
+                        filter.Process(item.image, nextImage);
+                    }
+                }
+            }
+            Console.WriteLine("all tasks done");
+            baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
+        }
+
     }
 
     public class StackAllMergeStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
@@ -167,7 +204,7 @@ namespace imageStacker.Core
                         Console.WriteLine("cancellation requested");
                         break;
                     }
-                 //   Console.WriteLine("nothing to process");
+                    //   Console.WriteLine("nothing to process");
                     await Task.Delay(100);
                     await Task.Yield();
                     continue;
