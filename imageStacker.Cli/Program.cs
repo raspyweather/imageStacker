@@ -113,25 +113,10 @@ namespace imageStacker.Cli
 
                     // processingStrategy = new StackAllStrategy();
                     // might be unsafe
-                    processingStrategy = new StackAllMergeStrategy();
+                    processingStrategy = new ThreadUnorderedProcessingStrategy();
                     inputMode = setInput(info);
                     outputMode = setOutput(info);
 
-                })
-                .WithParsed<StackProgressiveOptions>(info =>
-                {
-                    Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
-
-                    processingStrategy = new StackProgressiveStrategy();
-                    inputMode = setInput(info);
-                    outputMode = setOutput(info);
-                })
-                .WithParsed<StackContinuousOptions>(info =>
-                {
-                    Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
-                    processingStrategy = new StackContinousStrategy(info.Count);
-                    inputMode = setInput(info);
-                    outputMode = setOutput(info);
                 })
                 .WithNotParsed(x =>
                 {

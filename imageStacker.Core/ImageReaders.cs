@@ -4,11 +4,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core
@@ -16,7 +13,7 @@ namespace imageStacker.Core
 
     public interface IImageReader
     {
-        public Task Produce(ConcurrentQueue<IProcessableImage> queue);
+        public Task Produce(BlockingCollection<IProcessableImage> queue);
     }
 
     public class ImageStreamReader : IImageReader
@@ -32,7 +29,7 @@ namespace imageStacker.Core
             this.Format = format;
             this.InputStream = inputStream;
         }
-        public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
+        public async Task Produce(BlockingCollection<IProcessableImage> queue)
         {
             var bytesToRead = Width * Height * Image.GetPixelFormatSize(Format);
             while (this.InputStream.CanRead)
@@ -46,10 +43,12 @@ namespace imageStacker.Core
                         Format,
                         Marshal.UnsafeAddrOfPinnedArrayElement(this.InputStream.ReadBytes(bytesToRead), 0));
 
-                    queue.Enqueue(MutableImage.FromImage(bm));
+                    queue.Add(MutableImage.FromImage(bm));
                 }
-                catch (Exception e) { Console.WriteLine(e); }
-                while (queue.Count > 100) await Task.Delay(10);
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
             }
         }
     }
@@ -83,7 +82,7 @@ namespace imageStacker.Core
 
         private readonly Queue<string> filenames;
 
-        public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
+        public async Task Produce(BlockingCollection<IProcessableImage> queue)
         {
             int i = 0;
             foreach (var filename in filenames)
@@ -102,15 +101,13 @@ namespace imageStacker.Core
                     byte[] bmp1Bytes = new byte[length];
                     Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
                     var image = MutableImage.FromBytes(width, height, bmp1Bytes);
-                    queue.Enqueue(image);
+                    queue.Add(image);
                     bmp1.UnlockBits(bmp1Data);
                     bmp1.Dispose();
                 }
-                catch (Exception e) { Console.WriteLine(e); }
-                while (queue.Count > 100)
+                catch (Exception e)
                 {
-                    Console.WriteLine("input buffer full");
-                    await Task.Delay(100);
+                    Console.WriteLine(e);
                 }
             }
         }
@@ -133,48 +130,37 @@ namespace imageStacker.Core
             this.filenames = new Queue<string>(files);
         }
 
-        private const int processQueueLength = 16;
         private const int readQueueLength = 8;
         private readonly Queue<string> filenames;
 
-        private readonly CancellationTokenSource readingFinished = new CancellationTokenSource();
+        private readonly BlockingCollection<MemoryStream> rawImageQueue = new BlockingCollection<MemoryStream>(readQueueLength);
 
-        private readonly ConcurrentQueue<MemoryStream> dataToParse = new ConcurrentQueue<MemoryStream>();
-
-        private async Task ReadFromDisk()
+        private void ReadFromDisk()
         {
             int i = 0;
             foreach (var filename in filenames)
             {
                 try
                 {
-                    Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ReadBuffer");
+                    Logger.loggerInstance.NotifyFillstate(rawImageQueue.Count, "ReadBuffer");
                     Logger.loggerInstance.NotifyFillstate(i, "FilesRead");
-                    dataToParse.Enqueue(new MemoryStream(File.ReadAllBytes(filename), false));
+                    rawImageQueue.Add(new MemoryStream(File.ReadAllBytes(filename), false));
                     i++;
                 }
-                catch (Exception e) { Console.WriteLine(e); }
-                while (dataToParse.Count > readQueueLength)
+                catch (Exception e)
                 {
-                    await Task.Delay(100);
-                    await Task.Yield();
+                    Console.WriteLine(e);
                 }
             }
-            readingFinished.Cancel();
+            rawImageQueue.CompleteAdding();
             Console.WriteLine("Finished reading" + i.ToString());
         }
 
-        private async Task DecodeImage(ConcurrentQueue<IProcessableImage> queue)
+        private void DecodeImage(BlockingCollection<IProcessableImage> decodedImageQueue)
         {
-            while (!readingFinished.Token.IsCancellationRequested)
+            while (!rawImageQueue.IsCompleted)
             {
-                if (!dataToParse.TryDequeue(out var data))
-                {
-                    //   Console.WriteLine("nothing to parse");
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
-                }
+                var data = rawImageQueue.Take();
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;
                 var height = bmp.Height;
@@ -186,39 +172,23 @@ namespace imageStacker.Core
                 byte[] bmp1Bytes = new byte[length];
                 Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
 
-                queue.Enqueue(MutableImage.FromBytes(width, height, bmp1Bytes));
+                decodedImageQueue.Add(MutableImage.FromBytes(width, height, bmp1Bytes));
 
                 bmp.UnlockBits(bmp1Data);
                 bmp.Dispose();
                 data.Dispose();
-                Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ParseBuffer");
-
-                while (queue.Count > processQueueLength)
-                {
-                    // Console.WriteLine("waiting to parse");
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+                Logger.loggerInstance.NotifyFillstate(decodedImageQueue.Count, "ParseBuffer");
             }
             Console.WriteLine("finished decoding");
         }
 
-        public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
+        public async Task Produce(BlockingCollection<IProcessableImage> decodedQueue)
         {
-            var readingTask = Task.Run(() => ReadFromDisk());
-            var decodingTask = Task.Run(() => DecodeImage(queue));
+            var readingTask = Task.Factory.StartNew(() => ReadFromDisk(), TaskCreationOptions.LongRunning);
+            var decodingTasks = Enumerable.Range(0, 2).Select(x => Task.Factory.StartNew(() => DecodeImage(decodedQueue), TaskCreationOptions.LongRunning));
 
-            var decodingTasks = Enumerable.Range(0, 2).Select(x => (Task)Task.Run(() => DecodeImage(queue)));
-
-            await readingTask;
-            await Task.WhenAll(decodingTasks);
-            //await decodingTask;
-
-            if (decodingTask.IsFaulted || readingTask.IsFaulted)
-            {
-                throw new Exception();
-            }
-
+            await Task.WhenAll(new[] { readingTask }.Concat(decodingTasks));
+            decodedQueue.CompleteAdding();
         }
     }
 

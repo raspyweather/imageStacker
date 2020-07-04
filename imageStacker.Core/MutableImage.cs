@@ -1,11 +1,8 @@
-﻿using Microsoft.VisualBasic;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Runtime.CompilerServices;
+using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace imageStacker.Core
 {
@@ -25,12 +22,12 @@ namespace imageStacker.Core
     {
 
         public static MutableImage FromProcessableImage(IProcessableImage image)
-         => image as MutableImage ?? new MutableImage
+         => new MutableImage
             (
                 Width: image.Width,
                 Height: image.Height,
                 format: image.PixelFormat,
-                data: image.Data);
+                data: image.Data.ToArray());
 
         internal MutableImage(int Width, int Height, PixelFormat format, byte[] data)
         {

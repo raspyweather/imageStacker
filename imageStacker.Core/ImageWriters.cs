@@ -26,7 +26,7 @@ namespace imageStacker.Core
 
     public interface IImageWriter
     {
-        public void Writefile(IProcessableImage image, ISaveInfo info);
+        public void WriteFile(IProcessableImage image, ISaveInfo info);
     }
 
     public class ImageFileWriter : IImageWriter
@@ -39,7 +39,7 @@ namespace imageStacker.Core
             OutputFolder = outputFolder;
         }
 
-        public void Writefile(IProcessableImage image, ISaveInfo info)
+        public void WriteFile(IProcessableImage image, ISaveInfo info)
         {
             string path = Path.Combine(OutputFolder,
                 string.Join('-',
@@ -62,7 +62,7 @@ namespace imageStacker.Core
             this.outputStream = outputStream;
         }
 
-        public void Writefile(IProcessableImage image, ISaveInfo info)
+        public void WriteFile(IProcessableImage image, ISaveInfo info)
         {
             MutableImage.ToImage(MutableImage.FromProcessableImage(image)).Save(outputStream, ImageFormat.MemoryBmp);
         }
