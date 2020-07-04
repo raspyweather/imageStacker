@@ -138,7 +138,7 @@ namespace imageStacker.Core
         private void ReadFromDisk()
         {
             int i = 0;
-            foreach (var filename in filenames)
+            Parallel.ForEach(filenames, filename =>
             {
                 try
                 {
@@ -151,16 +151,15 @@ namespace imageStacker.Core
                 {
                     Console.WriteLine(e);
                 }
-            }
+            });
             rawImageQueue.CompleteAdding();
             Console.WriteLine("Finished reading" + i.ToString());
         }
 
         private void DecodeImage(BlockingCollection<IProcessableImage> decodedImageQueue)
         {
-            while (!rawImageQueue.IsCompleted)
+            foreach(var data in rawImageQueue.GetConsumingEnumerable())
             {
-                var data = rawImageQueue.Take();
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;
                 var height = bmp.Height;
@@ -185,7 +184,7 @@ namespace imageStacker.Core
         public async Task Produce(BlockingCollection<IProcessableImage> decodedQueue)
         {
             var readingTask = Task.Factory.StartNew(() => ReadFromDisk(), TaskCreationOptions.LongRunning);
-            var decodingTasks = Enumerable.Range(0, 2).Select(x => Task.Factory.StartNew(() => DecodeImage(decodedQueue), TaskCreationOptions.LongRunning));
+            var decodingTasks = Enumerable.Range(0, 6).Select(x => Task.Factory.StartNew(() => DecodeImage(decodedQueue), TaskCreationOptions.LongRunning));
 
             await Task.WhenAll(new[] { readingTask }.Concat(decodingTasks));
             decodedQueue.CompleteAdding();

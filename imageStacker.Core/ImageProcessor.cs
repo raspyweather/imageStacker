@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,47 +54,50 @@ namespace imageStacker.Core
         public async Task Process(IImageReader reader, List<IFilter> filters, IImageWriter writer)
         {
             var readQueue = new BlockingCollection<IProcessableImage>(16);
-            var produceTask = Task.Run(() => reader.Produce(readQueue));
+            var produceTask = reader.Produce(readQueue);
 
             var taskPerThread = new List<Task<List<IProcessableImage>>>();
 
             for (int threadIndex = 0; threadIndex < 8; threadIndex++)
             {
-                taskPerThread.Add(Task.Factory.StartNew(() => Process(filters, readQueue)));
+                taskPerThread.Add(Task.Factory.StartNew(() => Process(filters, readQueue), TaskCreationOptions.LongRunning));
             }
             await Task.WhenAll(new[] { produceTask }.Concat(taskPerThread));
+            Console.WriteLine("Multi-Processing done");
 
-            for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
+            Parallel.For(0, filters.Count, filterIndex =>
             {
                 var filter = filters[filterIndex];
-                var workImage = MutableImage.FromProcessableImage(taskPerThread[0].Result[filterIndex]);
+                var workImage = taskPerThread[0].Result[filterIndex] as MutableImage;
 
-                for(int threadIndex = 1; threadIndex < taskPerThread.Count; threadIndex++)
+                for (int threadIndex = 1; threadIndex < taskPerThread.Count; threadIndex++)
                 {
                     filter.Process(workImage, taskPerThread[threadIndex].Result[filterIndex]);
                 }
 
                 writer.WriteFile(workImage, new SaveInfo(null, filter.Name));
-            }
+            });
+
+            Console.WriteLine("Single-Processing done");
         }
 
         private List<IProcessableImage> Process(IList<IFilter> filters, BlockingCollection<IProcessableImage> readQueue)
         {
-            var filterWorkImages = new List<MutableImage>();
+            var filterArray = filters.ToArray();
+            var filterCount = filterArray.Length;
+            var filterWorkImages = new MutableImage[filterCount];
 
             var firstImage = readQueue.Take();
-            for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
+            for (int filterIndex = 0; filterIndex < filterCount; filterIndex++)
             {
-                filterWorkImages.Add(MutableImage.FromProcessableImage(firstImage));
+                filterWorkImages[filterIndex] = MutableImage.FromProcessableImage(firstImage);
             }
 
-            while (!readQueue.IsCompleted)
+            foreach (var image in readQueue.GetConsumingEnumerable())
             {
-                var image = readQueue.Take();
-
-                for (int i = 0; i < filters.Count; i++)
+                for (int i = 0; i < filterCount; i++)
                 {
-                    var filter = filters[i];
+                    var filter = filterArray[i];
                     var workImage = filterWorkImages[i];
                     filter.Process(workImage, image);
                 }
