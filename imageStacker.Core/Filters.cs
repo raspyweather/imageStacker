@@ -1,12 +1,4 @@
-﻿using System;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-namespace imageStacker.Core
+﻿namespace imageStacker.Core
 {
     public interface IFilter
     {
@@ -14,72 +6,94 @@ namespace imageStacker.Core
         public void Process(MutableImage currentIamge, IProcessableImage nextPicture);
     }
 
-    public abstract class BasicFilter : IFilter
+    public class MinFilter : IFilter
     {
-        public abstract string Name { get; }
-
-        public abstract void Process(MutableImage currentImage, IProcessableImage nextPicture);
-    }
-    public class MinFilter : BasicFilter
-    {
-        public override string Name => nameof(MinFilter);
-        public override void Process(MutableImage currentPicture, IProcessableImage nextPicture)
+        public string Name => nameof(MinFilter);
+        public unsafe void Process(MutableImage currentPicture, IProcessableImage nextPicture)
         {
             int length = nextPicture.Data.Length;
-            for (int i = 0; i < length; i++)
+            fixed (byte* currentPicPtr = currentPicture.Data)
             {
-                if (currentPicture.Data[i] > nextPicture.Data[i])
+                fixed (byte* nextPicPtr = nextPicture.Data)
                 {
-                    currentPicture.Data[i] = nextPicture.Data[i];
+                    byte* currentPxPtr = currentPicPtr;
+                    byte* nextPxPtr = nextPicPtr;
+
+                    for (int i = 0; i < length; i++)
+                    {
+                        var nextData = *nextPxPtr;
+                        if (*currentPxPtr > nextData)
+                        {
+                            *currentPxPtr = nextData;
+                        }
+
+                        currentPxPtr++;
+                        nextPxPtr++;
+                    }
                 }
             }
         }
     }
 
-
-    public class MaxFilter : BasicFilter
+    public class MaxFilter : IFilter
     {
-        public override string Name => nameof(MaxFilter);
+        public string Name => nameof(MaxFilter);
 
-        public override void Process(MutableImage currentImage, IProcessableImage nextPicture)
+        public unsafe void Process(MutableImage currentPicture, IProcessableImage nextPicture)
         {
             int length = nextPicture.Data.Length;
-            for (int i = 0; i < length; i++)
+            fixed (byte* currentPicPtr = currentPicture.Data)
             {
-                if (currentImage.Data[i] < nextPicture.Data[i])
+                fixed (byte* nextPicPtr = nextPicture.Data)
                 {
-                    currentImage.Data[i] = nextPicture.Data[i];
+                    byte* currentPxPtr = currentPicPtr;
+                    byte* nextPxPtr = nextPicPtr;
+
+                    for (int i = 0; i < length; i++)
+                    {
+                        var nextData = *nextPxPtr;
+                        if (*currentPxPtr < nextData)
+                        {
+                            *currentPxPtr = nextData;
+                        }
+
+                        currentPxPtr++;
+                        nextPxPtr++;
+                    }
                 }
             }
         }
     }
 
-    public class ExtremaFilter : BasicFilter
+    public class ExtremaFilter : IFilter
     {
-        public override string Name => nameof(ExtremaFilter);
+        public string Name => nameof(ExtremaFilter);
 
         private readonly int Sigma = 20;
 
-        public override void Process(MutableImage currentImage, IProcessableImage nextPicture)
+        public unsafe void Process(MutableImage currentPicture, IProcessableImage nextPicture)
         {
             int length = nextPicture.Data.Length;
-            for (int i = 0; i < length; i++)
+            fixed (byte* currentPicPtr = currentPicture.Data)
             {
-                if (currentImage.Data[i] - nextPicture.Data[i] > Sigma)
+                fixed (byte* nextPicPtr = nextPicture.Data)
                 {
-                    // max
-                    currentImage.Data[i] = nextPicture.Data[i];
-                    continue;
-                }
-                if (nextPicture.Data[i] - currentImage.Data[i] > Sigma)
-                {
-                    // min
-                    currentImage.Data[i] = nextPicture.Data[i];
-                }
+                    byte* currentPxPtr = currentPicPtr;
+                    byte* nextPxPtr = nextPicPtr;
 
+                    for (int i = 0; i < length; i++)
+                    {
+                        var currentData = *currentPxPtr;
+                        var nextData = *nextPxPtr;
+                        if (currentData - nextData > Sigma || nextData - currentData > Sigma)
+                        {
+                            *currentPxPtr = nextData;
+                        }
+                        currentPxPtr++;
+                        nextPxPtr++;
+                    }
+                }
             }
         }
-
     }
-
 }

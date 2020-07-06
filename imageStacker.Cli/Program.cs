@@ -28,13 +28,14 @@ namespace imageStacker.Cli
             //  - --files --folder --except --reverse --skip
             //
             //            args = new string[] { @"stackImage", @"--inputFolder=C:\Users\armbe\OneDrive\Dokumente\PlatformIO\Projects\imageStacker\imageStacker.Piping.Cli\data", "--outputFolder=.", "--outputFile=stacked" };
-            args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
+            //args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
+            args = @"stackContinuous --inputFolder=L:\Canada\timelapses\202003032204 --outputFile=202003032204 --StackCount=5 --outputFolder=.".Split(' ');
             Stopwatch st = new Stopwatch();
             st.Start();
 
             IImageReader inputMode = null;
             IImageWriter outputMode = null;
-            List<IFilter> filters = new List<IFilter> { new MinFilter(), new MaxFilter(), new ExtremaFilter() };
+            List<IFilter> filters = new List<IFilter> { new MaxFilter() };
             IImageProcessingStrategy processingStrategy = null;
             bool throwMe = false;
 
@@ -129,6 +130,11 @@ namespace imageStacker.Cli
                 .WithParsed<StackContinuousOptions>(info =>
                 {
                     Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
+                    if (info.Count == 0)
+                    {
+                        Console.WriteLine("You have to define --stackCount for continuous stacking");
+                        throwMe = true;
+                    }
                     processingStrategy = new StackContinousStrategy(info.Count);
                     inputMode = setInput(info);
                     outputMode = setOutput(info);
