@@ -254,7 +254,8 @@ namespace imageStacker.Core
 
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
-            var bufferQueue = new Queue<(IFilter filter, MutableImage image)>();
+            var bufferQueue = new Queue<(IFilter filter, MutableImage image, Task task, int appliedImages, int startIndex)>();
+            int maxSize = filters.Count * StackCount;
             for (int i = 0; true; i++)
             {
                 if (!inputQueue.TryDequeue(out var nextImage))
@@ -264,21 +265,39 @@ namespace imageStacker.Core
                         break;
                     }
                     await Task.Delay(100);
+                    await Task.Yield();
                     continue;
                 }
 
-                bufferQueue.AsParallel().ForAll(data => data.filter.Process(data.image, nextImage));
 
-                if (bufferQueue.Count == StackCount)
+                bufferQueue.AsParallel().ForAll(data =>
                 {
-                    var (filter, image) = bufferQueue.Dequeue();
-                    outputQueue.Enqueue((image, new SaveInfo(i, filter.Name)));
+                    data.task = data.task.ContinueWith(_ =>
+                    {
+                        data.filter.Process(data.image, nextImage);
+                        data.appliedImages++;
+                    });
+                    data.task.ConfigureAwait(false);
+                });
+
+                while (maxSize <= bufferQueue.Count)
+                {
+                    var (filter, image, t, appliedImages, startIndex) = bufferQueue.Dequeue();
+                    await t;
+                    outputQueue.Enqueue((image, new SaveInfo(startIndex, filter.Name)));
                 }
 
                 filters.ForEach(filter =>
                 {
-                    bufferQueue.Enqueue((filter, image: MutableImage.FromProcessableImage(nextImage)));
+                    bufferQueue.Enqueue((filter, image: MutableImage.FromProcessableImage(nextImage), Task.CompletedTask, 0, i));
                 });
+            }
+
+            while (0 <= bufferQueue.Count)
+            {
+                var (filter, image, t, appliedImages, startindex) = bufferQueue.Dequeue();
+                await t;
+                outputQueue.Enqueue((image, new SaveInfo(startindex, filter.Name)));
             }
         }
     }

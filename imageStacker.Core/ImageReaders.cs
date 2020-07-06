@@ -111,6 +111,7 @@ namespace imageStacker.Core
                 {
                     Console.WriteLine("input buffer full");
                     await Task.Delay(100);
+                    await Task.Yield();
                 }
             }
         }

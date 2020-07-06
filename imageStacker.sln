@@ -11,9 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Exploration.Cl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Piping.Cli", "imageStacker.Piping.Cli\imageStacker.Piping.Cli.csproj", "{72C8C58A-641A-4732-93AE-E25AB2D34BF9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "imageStacker.Cli.Test.Integration", "imageStacker.Cli.Test.Integration\imageStacker.Cli.Test.Integration.csproj", "{FDCC4596-C9A3-45AB-A3DC-20058DD4549C}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "imageStacker.Core.Gpu", "imageStacker.Core.Gpu\imageStacker.Core.Gpu.csproj", "{BB038630-0AB9-4269-8678-A123B99E39AB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Cli.Test.Integration", "imageStacker.Cli.Test.Integration\imageStacker.Cli.Test.Integration.csproj", "{FDCC4596-C9A3-45AB-A3DC-20058DD4549C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,10 +39,6 @@ Global
 		{FDCC4596-C9A3-45AB-A3DC-20058DD4549C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDCC4596-C9A3-45AB-A3DC-20058DD4549C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FDCC4596-C9A3-45AB-A3DC-20058DD4549C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BB038630-0AB9-4269-8678-A123B99E39AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BB038630-0AB9-4269-8678-A123B99E39AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BB038630-0AB9-4269-8678-A123B99E39AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BB038630-0AB9-4269-8678-A123B99E39AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
