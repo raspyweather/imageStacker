@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -221,6 +223,156 @@ namespace imageStacker.Core
             }
 
         }
+    }
+
+    public class ImageMutliFileOrderedReader : IImageReader
+    {
+        public ImageMutliFileOrderedReader(string folderName, string filter = "*.JPG")
+        {
+            this.filenames = new Queue<string>(Directory.GetFiles(folderName, filter, new EnumerationOptions
+            {
+                AttributesToSkip = FileAttributes.System,
+                IgnoreInaccessible = true,
+                MatchCasing = MatchCasing.CaseInsensitive
+            }));
+            Console.Error.WriteLine($"Items found: {filenames.Count}");
+        }
+        public ImageMutliFileOrderedReader(string[] files)
+        {
+            this.filenames = new Queue<string>(files);
+        }
+
+        private const int processQueueLength = 8;
+        private const int publishQueueLength = 8;
+        private const int readQueueLength = 8;
+        private readonly Queue<string> filenames;
+
+        private readonly CancellationTokenSource readingFinished = new CancellationTokenSource();
+        private readonly CancellationTokenSource parsingFinished = new CancellationTokenSource();
+
+        private readonly ConcurrentQueue<(MemoryStream, int)> dataToParse = new ConcurrentQueue<(MemoryStream, int)>();
+        private readonly ConcurrentQueue<(IProcessableImage, int)> dataToPublish = new ConcurrentQueue<(IProcessableImage, int)>();
+
+
+        private async Task ReadFromDisk()
+        {
+            int i = 0;
+            foreach (var filename in filenames)
+            {
+                try
+                {
+                    Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ReadBuffer");
+                    Logger.loggerInstance.NotifyFillstate(i, "FilesRead");
+                    dataToParse.Enqueue((new MemoryStream(File.ReadAllBytes(filename), false), i));
+                    i++;
+                }
+                catch (Exception e) { Console.WriteLine(e); }
+                while (dataToParse.Count > readQueueLength)
+                {
+                    await Task.Delay(100);
+                    await Task.Yield();
+                }
+            }
+            readingFinished.Cancel();
+            Console.WriteLine("Finished reading" + i.ToString());
+        }
+
+        private async Task DecodeImage(ConcurrentQueue<(IProcessableImage, int)> queue)
+        {
+            while (!readingFinished.Token.IsCancellationRequested)
+            {
+                if (!dataToParse.TryDequeue(out var data))
+                {
+                    //   Console.WriteLine("nothing to parse");
+                    await Task.Delay(100);
+                    await Task.Yield();
+                    continue;
+                }
+                var bmp = new Bitmap(data.Item1);
+                var width = bmp.Width;
+                var height = bmp.Height;
+                var pixelFormat = bmp.PixelFormat;
+
+                var bmp1Data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, pixelFormat);
+                var length = bmp1Data.Stride * bmp1Data.Height;
+
+                byte[] bmp1Bytes = new byte[length];
+                Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
+
+                queue.Enqueue((MutableImage.FromBytes(width, height, bmp1Bytes), data.Item2));
+
+                bmp.UnlockBits(bmp1Data);
+                bmp.Dispose();
+                data.Item1.Dispose();
+                Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ParseBuffer");
+
+                while (queue.Count > processQueueLength)
+                {
+                    // Console.WriteLine("waiting to parse");
+                    await Task.Delay(100);
+                    await Task.Yield();
+                }
+            }
+            Console.WriteLine("finished decoding");
+            parsingFinished.Cancel();
+        }
+
+        private async Task Publish(ConcurrentQueue<IProcessableImage> queue)
+        {
+            int nextImageIndex = 0;
+            while (!parsingFinished.Token.IsCancellationRequested)
+            {
+                Logger.loggerInstance.NotifyFillstate(dataToPublish.Count, "Publishbuffer");
+                if (dataToPublish.Count == 0)
+                {
+                    await Task.Delay(100);
+                    await Task.Yield();
+                    continue;
+                }
+
+                for (int i = 0; i < dataToPublish.Count; i++)
+                {
+                    if (dataToPublish.TryDequeue(out var result))
+                    {
+                        if (result.Item2 == nextImageIndex)
+                        {
+                            nextImageIndex++;
+                            queue.Enqueue(result.Item1);
+                            continue;
+                        }
+                        dataToPublish.Enqueue(result);
+                    }
+                }
+
+                while (queue.Count > publishQueueLength)
+                {
+                    // Console.WriteLine("waiting to parse");
+                    await Task.Delay(100);
+                    await Task.Yield();
+                }
+            }
+            Console.WriteLine("finished decoding");
+        }
+
+        public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
+        {
+            var readingTask = Task.Run(() => ReadFromDisk());
+            var decodingTasks = Enumerable.Range(0, 2).Select(x => (Task)Task.Run(() => DecodeImage(dataToPublish)));
+            var orderingTask = Task.Run(() => Publish(queue));
+
+            await Task.WhenAll(Task.WhenAll(decodingTasks), orderingTask, readingTask);
+
+            if (decodingTasks.Any(x => x.IsFaulted) || readingTask.IsFaulted || orderingTask.IsFaulted)
+            {
+                throw decodingTasks.FirstOrDefault(x => x.Exception != null)?.Exception
+                      ?? readingTask.Exception
+                      ?? orderingTask.Exception
+                      ?? new Exception("unkown stuff happened");
+            }
+
+        }
+
+
     }
 
 }

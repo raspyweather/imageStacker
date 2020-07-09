@@ -28,8 +28,10 @@ namespace imageStacker.Cli
             //  - --files --folder --except --reverse --skip
             //
             //            args = new string[] { @"stackImage", @"--inputFolder=C:\Users\armbe\OneDrive\Dokumente\PlatformIO\Projects\imageStacker\imageStacker.Piping.Cli\data", "--outputFolder=.", "--outputFile=stacked" };
-            //args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
-            args = @"stackContinuous --inputFolder=L:\Canada\timelapses\202003032204 --outputFile=202003032204 --StackCount=5 --outputFolder=.".Split(' ');
+            //  args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
+            args = @"stackImage --inputFolder=F:\2020 --outputFile=2020F --outputFolder=.".Split(' ');
+            //  args = @"stackContinuous --inputFolder=F:\2020 --outputFile=2020 --StackCount=5 --outputFolder=.".Split(' ');
+            //  args = @"stackProgressive --inputFolder=F:\2020 --outputFile=2020P --outputFolder=.".Split(' ');
             Stopwatch st = new Stopwatch();
             st.Start();
 
@@ -61,7 +63,7 @@ namespace imageStacker.Cli
                 }
                 if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
                 {
-                    return new ImageMutliFileReader(commonOptions.InputFiles.ToArray());
+                    return new ImageMutliFileOrderedReader(commonOptions.InputFiles.ToArray());
                 }
                 if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
                 {
@@ -70,7 +72,7 @@ namespace imageStacker.Cli
                     {
                         Console.Error.WriteLineColored($"InputFolder does not exist {commonOptions.InputFolder}", ConsoleColor.Yellow, ConsoleColor.Black);
                     }
-                    return new ImageMutliFileReader(commonOptions.InputFolder);
+                    return new ImageMutliFileOrderedReader(commonOptions.InputFolder);
                 }
                 Console.Error.WriteLineColored("No Input Mode defined", ConsoleColor.Red, ConsoleColor.Black);
                 throwMe = true;

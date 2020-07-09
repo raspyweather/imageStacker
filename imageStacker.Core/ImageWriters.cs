@@ -45,9 +45,9 @@ namespace imageStacker.Core
                 string.Join('-',
                     Filename,
                     info.Filtername,
-                    info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".png");
+                    info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".jpg");
             File.Delete(path);
-            MutableImage.ToImage(image as MutableImage).Save(path, ImageFormat.Png);
+            MutableImage.ToImage(image as MutableImage).Save(path, ImageFormat.Jpeg);
         }
     }
 

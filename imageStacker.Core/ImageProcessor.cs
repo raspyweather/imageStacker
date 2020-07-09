@@ -56,6 +56,7 @@ namespace imageStacker.Core
                 }
                 writer.Writefile(imageInfo.image, imageInfo.saveInfo);
             }
+            Logger.loggerInstance.NotifyFillstate(outputQueue.Count, "WriteBuffer");
         }
         protected async Task<IProcessableImage> GetFirstImage()
         {
@@ -67,7 +68,7 @@ namespace imageStacker.Core
                     {
                         break;
                     }
-                    //await Task.Delay(100);
+                    await Task.Delay(100);
                     continue;
                 }
                 return firstData;
@@ -79,15 +80,17 @@ namespace imageStacker.Core
 
         public override async Task Process(IImageReader reader, List<IFilter> filters, IImageWriter writer)
         {
-            var readThread = ReadingThread(reader);
-            readThread.ConfigureAwait(false);
-            //     var readThread = Task.Factory.StartNew(() => ReadingThread(reader));
-            var processThread = Task.Factory.StartNew(() => ProcessingThread(filters).ContinueWith(_ => outputFinishedToken.Cancel()));
-            var writeThread = Task.Factory.StartNew(() => WritingThread(writer));
+            var readThread = Task.Run(() => ReadingThread(reader)).ContinueWith(_ => inputFinishedToken.Cancel());
+            var processThread = Task.Run(() => ProcessingThread(filters).ContinueWith(_ => outputFinishedToken.Cancel()));
+            var writeThread = Task.Run(() => WritingThread(writer));
 
             Console.WriteLine("threads started");
 
             await Task.WhenAll(readThread, processThread, writeThread);
+
+            await readThread;
+            await processThread;
+            await writeThread;
         }
     }
 
@@ -175,71 +178,76 @@ namespace imageStacker.Core
     {
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
-            IProcessableImage firstData = await GetFirstImage();
-            var firstMutableImage = MutableImage.FromProcessableImage(firstData);
-
-            const int threadsToUtilize = 8;
-
-            var jobs = new ConcurrentQueue<(IFilter filter, MutableImage image)[]>();
-
-            for (int i = 0; i < threadsToUtilize; i++)
+            try
             {
-                jobs.Enqueue(filters.Select((filter, index) => (filter, image: firstMutableImage.Clone())).ToArray());
-            }
+                IProcessableImage firstData = await GetFirstImage();
+                var firstMutableImage = MutableImage.FromProcessableImage(firstData);
 
-            var tasks = new ConcurrentQueue<Task>();
+                const int threadsToUtilize = 8;
 
-            while (true)
-            {
-                Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
-                while (tasks.Count >= 8)
+                var jobs = new ConcurrentQueue<(IFilter filter, MutableImage image)[]>();
+
+                for (int i = 0; i < threadsToUtilize; i++)
                 {
-                    await Task.WhenAny(tasks);
-                    tasks.Filter(task => !task.IsCompleted);
+                    jobs.Enqueue(filters.Select((filter, index) => (filter, image: firstMutableImage.Clone())).ToArray());
                 }
-                if (!inputQueue.TryDequeue(out var nextImage))
+
+                var tasks = new ConcurrentQueue<Task>();
+
+                while (true)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
+                    Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
+                    while (tasks.Count >= 8)
                     {
-                        Console.WriteLine("cancellation requested");
-                        break;
+                        await Task.WhenAny(tasks);
+                        tasks.Filter(task => !task.IsCompleted);
                     }
-                    //   Console.WriteLine("nothing to process");
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    if (!inputQueue.TryDequeue(out var nextImage))
+                    {
+                        if (inputFinishedToken.IsCancellationRequested)
+                        {
+                            Console.WriteLine("cancellation requested");
+                            break;
+                        }
+                        //   Console.WriteLine("nothing to process");
+                        await Task.Delay(100);
+                        await Task.Yield();
+                        continue;
+                    }
+
+                    if (jobs.TryDequeue(out var currentJob))
+                    {
+                        var task = Task.Factory.StartNew(() =>
+                        {
+                            foreach (var (filter, image) in currentJob)
+                            {
+                                filter.Process(image, nextImage);
+                            }
+                        });
+                        jobs.Enqueue(currentJob);
+                        tasks.Enqueue(task);
+                    }
+
+                    Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
                 }
 
-                jobs.TryDequeue(out var currentJob);
-                var task = Task.Factory.StartNew(() =>
-               {
-                   foreach (var (filter, image) in currentJob)
-                   {
-                       filter.Process(image, nextImage);
-                   }
-               });
-                jobs.Enqueue(currentJob);
-                tasks.Enqueue(task);
+                await Task.WhenAll(tasks);
 
-                Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
+                if (!jobs.TryDequeue(out var previousJob)) { throw new Exception("illegal state?"); }
+                while (jobs.TryDequeue(out var job))
+                {
+                    previousJob.Zip(job, (first, second) => { first.filter.Process(second.image, first.image); return 0; }).ToArray();
+                    previousJob = job;
+                }
+
+                previousJob.ToList().ForEach(data =>
+                {
+                    outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+                });
+                Console.WriteLine("done");
 
             }
-
-            await Task.WhenAll(tasks);
-
-            if (!jobs.TryDequeue(out var previousJob)) { throw new Exception("illegal state?"); }
-            while (jobs.TryDequeue(out var job))
-            {
-                previousJob.Zip(job, (first, second) => { first.filter.Process(second.image, first.image); return 0; }).ToArray();
-                previousJob = job;
-            }
-
-            previousJob.ToList().ForEach(data =>
-            {
-                outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
-            });
-            Console.WriteLine("done");
-
+            catch (Exception e) { }
         }
     }
 
@@ -258,6 +266,13 @@ namespace imageStacker.Core
             int maxSize = filters.Count * StackCount;
             for (int i = 0; true; i++)
             {
+                if (outputQueue.Count > 16)
+                {
+                    await Task.Delay(100);
+                    await Task.Yield();
+                    continue;
+                }
+
                 if (!inputQueue.TryDequeue(out var nextImage))
                 {
                     if (inputFinishedToken.IsCancellationRequested)
@@ -269,16 +284,13 @@ namespace imageStacker.Core
                     continue;
                 }
 
-
-                bufferQueue.AsParallel().ForAll(data =>
+                for (int ii = 0; ii < bufferQueue.Count; ii++)
                 {
-                    data.task = data.task.ContinueWith(_ =>
-                    {
-                        data.filter.Process(data.image, nextImage);
-                        data.appliedImages++;
-                    });
-                    data.task.ConfigureAwait(false);
-                });
+                    var data = bufferQueue.Dequeue();
+                    data.task = Task.Run(() => data.filter.Process(data.image, nextImage));
+                    data.appliedImages++;
+                    bufferQueue.Enqueue(data);
+                }
 
                 while (maxSize <= bufferQueue.Count)
                 {
@@ -299,6 +311,8 @@ namespace imageStacker.Core
                 await t;
                 outputQueue.Enqueue((image, new SaveInfo(startindex, filter.Name)));
             }
+
+            Console.WriteLine("continuous finished");
         }
     }
 
@@ -321,6 +335,7 @@ namespace imageStacker.Core
 
                     continue;
                 }
+
 
                 baseImages.AsParallel()
                     .ForAll(data =>
