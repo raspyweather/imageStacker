@@ -21,7 +21,7 @@ namespace imageStacker.Core
 
         public Logger()
         {
-            var t = new Timer(1000);
+            var t = new Timer(200);
             t.Elapsed += (o, e) => this.WriteLine("", Verbosity.Error);
             t.Start();
         }
