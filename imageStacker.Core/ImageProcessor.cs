@@ -27,36 +27,57 @@ namespace imageStacker.Core
 
     public abstract class ThreadProcessingStrategy : BasicProcessingStrategy
     {
+        public ThreadProcessingStrategy(ILogger logger) : base()
+        {
+            this.logger = logger;
+        }
+
         protected readonly ConcurrentQueue<IProcessableImage> inputQueue = new ConcurrentQueue<IProcessableImage>();
         protected readonly ConcurrentQueue<(IProcessableImage image, ISaveInfo saveInfo)> outputQueue = new ConcurrentQueue<(IProcessableImage image, ISaveInfo saveInfo)>();
         protected readonly CancellationTokenSource
             inputFinishedToken = new CancellationTokenSource(),
             outputFinishedToken = new CancellationTokenSource();
+        protected readonly ILogger logger;
 
         protected async Task ReadingThread(IImageReader reader)
         {
-            await reader.Produce(inputQueue);
-            inputFinishedToken.Cancel();
-            Console.WriteLine("input finished");
+            try
+            {
+                await reader.Produce(inputQueue);
+                inputFinishedToken.Cancel();
+            }
+            catch (Exception e)
+            {
+                logger.LogException(e);
+            }
         }
         protected async Task WritingThread(IImageWriter writer)
         {
-            while (true)
+            try
             {
-                Logger.loggerInstance.NotifyFillstate(outputQueue.Count, "WriteBuffer");
-                if (!outputQueue.TryDequeue(out var imageInfo))
+                var tasks = new List<Task>();
+                while (true)
                 {
-                    if (outputFinishedToken.Token.IsCancellationRequested)
+                    logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
+                    if (!outputQueue.TryDequeue(out var imageInfo))
                     {
-                        // finished
-                        break;
+                        if (outputFinishedToken.Token.IsCancellationRequested)
+                        {
+                            // finished
+                            break;
+                        }
+                        await Task.Delay(100);
+                        continue;
                     }
-                    await Task.Delay(100);
-                    continue;
+                    await Task.Run(() => writer.Writefile(imageInfo.image, imageInfo.saveInfo));
                 }
-                writer.Writefile(imageInfo.image, imageInfo.saveInfo);
+                await Task.WhenAll(tasks);
+                logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
             }
-            Logger.loggerInstance.NotifyFillstate(outputQueue.Count, "WriteBuffer");
+            catch (Exception e)
+            {
+                logger.LogException(e);
+            }
         }
         protected async Task<IProcessableImage> GetFirstImage()
         {
@@ -80,12 +101,11 @@ namespace imageStacker.Core
 
         public override async Task Process(IImageReader reader, List<IFilter> filters, IImageWriter writer)
         {
-            var readThread = Task.Run(() => ReadingThread(reader)).ContinueWith(_ => inputFinishedToken.Cancel());
+    var readThread = Task.Run(() => ReadingThread(reader)).ContinueWith(_ => inputFinishedToken.Cancel());
             var processThread = Task.Run(() => ProcessingThread(filters).ContinueWith(_ => outputFinishedToken.Cancel()));
             var writeThread = Task.Run(() => WritingThread(writer));
 
-            Console.WriteLine("threads started");
-
+        
             await Task.WhenAll(readThread, processThread, writeThread);
 
             await readThread;
@@ -97,6 +117,10 @@ namespace imageStacker.Core
     public class StackAllStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
     {
         private const int tasksCount = 4;
+
+        public StackAllStrategy(ILogger logger) : base(logger)
+        {
+        }
 
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
@@ -116,7 +140,6 @@ namespace imageStacker.Core
                 {
                     if (inputFinishedToken.IsCancellationRequested)
                     {
-                        Console.WriteLine("cancellation requested");
                         break;
                     }
                     await Task.Delay(100);
@@ -133,13 +156,15 @@ namespace imageStacker.Core
             }
 
             await Task.WhenAll(tasks);
-            Console.WriteLine("all tasks done");
             baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
         }
     }
 
     public class StackAllSimpleStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
     {
+        public StackAllSimpleStrategy(ILogger logger) : base(logger)
+        {
+        }
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
             IProcessableImage firstData = await GetFirstImage();
@@ -152,7 +177,6 @@ namespace imageStacker.Core
                 {
                     if (inputFinishedToken.IsCancellationRequested)
                     {
-                        Console.WriteLine("cancellation requested");
                         break;
                     }
                     await Task.Delay(100);
@@ -168,7 +192,6 @@ namespace imageStacker.Core
                     }
                 }
             }
-            Console.WriteLine("all tasks done");
             baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
         }
 
@@ -176,78 +199,74 @@ namespace imageStacker.Core
 
     public class StackAllMergeStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
     {
+        public StackAllMergeStrategy(ILogger logger) : base(logger)
+        {
+
+        }
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
-            try
+            IProcessableImage firstData = await GetFirstImage();
+            var firstMutableImage = MutableImage.FromProcessableImage(firstData);
+
+            const int threadsToUtilize = 8;
+
+            var jobs = new ConcurrentQueue<(IFilter filter, MutableImage image)[]>();
+
+            for (int i = 0; i < threadsToUtilize; i++)
             {
-                IProcessableImage firstData = await GetFirstImage();
-                var firstMutableImage = MutableImage.FromProcessableImage(firstData);
-
-                const int threadsToUtilize = 8;
-
-                var jobs = new ConcurrentQueue<(IFilter filter, MutableImage image)[]>();
-
-                for (int i = 0; i < threadsToUtilize; i++)
-                {
-                    jobs.Enqueue(filters.Select((filter, index) => (filter, image: firstMutableImage.Clone())).ToArray());
-                }
-
-                var tasks = new ConcurrentQueue<Task>();
-
-                while (true)
-                {
-                    Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
-                    while (tasks.Count >= 8)
-                    {
-                        await Task.WhenAny(tasks);
-                        tasks.Filter(task => !task.IsCompleted);
-                    }
-                    if (!inputQueue.TryDequeue(out var nextImage))
-                    {
-                        if (inputFinishedToken.IsCancellationRequested)
-                        {
-                            Console.WriteLine("cancellation requested");
-                            break;
-                        }
-                        //   Console.WriteLine("nothing to process");
-                        await Task.Delay(100);
-                        await Task.Yield();
-                        continue;
-                    }
-
-                    if (jobs.TryDequeue(out var currentJob))
-                    {
-                        var task = Task.Factory.StartNew(() =>
-                        {
-                            foreach (var (filter, image) in currentJob)
-                            {
-                                filter.Process(image, nextImage);
-                            }
-                        });
-                        jobs.Enqueue(currentJob);
-                        tasks.Enqueue(task);
-                    }
-
-                    Logger.loggerInstance.NotifyFillstate(tasks.Count, "ProcessBuffer");
-                }
-
-                await Task.WhenAll(tasks);
-
-                if (!jobs.TryDequeue(out var previousJob)) { throw new Exception("illegal state?"); }
-                while (jobs.TryDequeue(out var job))
-                {
-                    previousJob.Zip(job, (first, second) => { first.filter.Process(second.image, first.image); return 0; }).ToArray();
-                    previousJob = job;
-                }
-
-                previousJob.ToList().ForEach(data =>
-                {
-                    outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
-                });
-                Console.WriteLine("done");
-
+                jobs.Enqueue(filters.Select((filter, index) => (filter, image: firstMutableImage.Clone())).ToArray());
             }
-            catch (Exception e) { }
+
+            var tasks = new ConcurrentQueue<Task>();
+
+            while (true)
+            {
+                logger.NotifyFillstate(tasks.Count, "ProcessBuffer");
+                while (tasks.Count >= 8)
+                {
+                    await Task.WhenAny(tasks);
+                    tasks.Filter(task => !task.IsCompleted);
+                }
+                if (!inputQueue.TryDequeue(out var nextImage))
+                {
+                    if (inputFinishedToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    await Task.Delay(100);
+                    await Task.Yield();
+                    continue;
+                }
+
+                if (jobs.TryDequeue(out var currentJob))
+                {
+                    var task = Task.Factory.StartNew(() =>
+                    {
+                        foreach (var (filter, image) in currentJob)
+                        {
+                            filter.Process(image, nextImage);
+                        }
+                    });
+                    jobs.Enqueue(currentJob);
+                    tasks.Enqueue(task);
+                }
+
+                logger.NotifyFillstate(tasks.Count, "ProcessBuffer");
+            }
+
+            await Task.WhenAll(tasks);
+
+            if (!jobs.TryDequeue(out var previousJob)) { throw new Exception("illegal state?"); }
+            while (jobs.TryDequeue(out var job))
+            {
+                previousJob.Zip(job, (first, second) => { first.filter.Process(second.image, first.image); return 0; }).ToArray();
+                previousJob = job;
+            }
+
+            previousJob.ToList().ForEach(data =>
+            {
+                outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+            });
         }
     }
 
@@ -255,7 +274,7 @@ namespace imageStacker.Core
     {
         private readonly int StackCount;
 
-        public StackContinousStrategy(int stackCount)
+        public StackContinousStrategy(int stackCount, ILogger logger) : base(logger)
         {
             StackCount = stackCount;
         }
@@ -311,13 +330,15 @@ namespace imageStacker.Core
                 await t;
                 outputQueue.Enqueue((image, new SaveInfo(startindex, filter.Name)));
             }
-
-            Console.WriteLine("continuous finished");
         }
     }
 
     public class StackProgressiveStrategy : ThreadProcessingStrategy, IImageProcessingStrategy
     {
+        public StackProgressiveStrategy(ILogger logger) : base(logger)
+        {
+
+        }
         protected override async Task ProcessingThread(List<IFilter> filters)
         {
             IProcessableImage firstData = await GetFirstImage();

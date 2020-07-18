@@ -68,7 +68,7 @@ namespace imageStacker.Core
 
     public class ImageFileReader : IImageReader
     {
-        public ImageFileReader(string folderName, string filter = "*.JPG")
+        public ImageFileReader(ILogger logger, string folderName, string filter = "*.JPG")
         {
             this.filenames = new Queue<string>(Directory.GetFiles(folderName, filter, new EnumerationOptions
             {
@@ -76,23 +76,26 @@ namespace imageStacker.Core
                 IgnoreInaccessible = true,
                 MatchCasing = MatchCasing.CaseInsensitive
             }));
-            Console.Error.WriteLine($"Items found: {filenames.Count}");
+            this.logger = logger;
+            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
-        public ImageFileReader(string[] files)
+        public ImageFileReader(ILogger logger, string[] files)
         {
             this.filenames = new Queue<string>(files);
+            this.logger = logger;
+            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
         private readonly Queue<string> filenames;
+        private readonly ILogger logger;
 
         public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
         {
-            int i = 0;
             foreach (var filename in filenames)
             {
                 try
                 {
-                    Logger.loggerInstance.NotifyFillstate(queue.Count, this.GetType().Name);
+                    logger.NotifyFillstate(queue.Count, this.GetType().Name);
                     var bmp1 = new Bitmap(filename);
                     var height = bmp1.Height;
                     var width = bmp1.Width;
@@ -111,7 +114,6 @@ namespace imageStacker.Core
                 catch (Exception e) { Console.WriteLine(e); }
                 while (queue.Count > 100)
                 {
-                    Console.WriteLine("input buffer full");
                     await Task.Delay(100);
                     await Task.Yield();
                 }
@@ -121,8 +123,9 @@ namespace imageStacker.Core
 
     public class ImageMutliFileReader : IImageReader
     {
-        public ImageMutliFileReader(string folderName, string filter = "*.JPG")
+        public ImageMutliFileReader(ILogger ilogger, string folderName, string filter = "*.JPG")
         {
+            logger = ilogger;
             this.filenames = new Queue<string>(Directory.GetFiles(folderName, filter, new EnumerationOptions
             {
                 AttributesToSkip = FileAttributes.System,
@@ -131,13 +134,17 @@ namespace imageStacker.Core
             }));
             Console.Error.WriteLine($"Items found: {filenames.Count}");
         }
-        public ImageMutliFileReader(string[] files)
+        public ImageMutliFileReader(ILogger ilogger, string[] files)
         {
             this.filenames = new Queue<string>(files);
+            logger = ilogger;
         }
 
         private const int processQueueLength = 16;
         private const int readQueueLength = 8;
+
+        private readonly ILogger logger;
+
         private readonly Queue<string> filenames;
 
         private readonly CancellationTokenSource readingFinished = new CancellationTokenSource();
@@ -151,8 +158,8 @@ namespace imageStacker.Core
             {
                 try
                 {
-                    Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ReadBuffer");
-                    Logger.loggerInstance.NotifyFillstate(i, "FilesRead");
+                    logger.NotifyFillstate(dataToParse.Count, "ReadBuffer");
+                    logger.NotifyFillstate(i, "FilesRead");
                     dataToParse.Enqueue(new MemoryStream(File.ReadAllBytes(filename), false));
                     i++;
                 }
@@ -164,7 +171,6 @@ namespace imageStacker.Core
                 }
             }
             readingFinished.Cancel();
-            Console.WriteLine("Finished reading" + i.ToString());
         }
 
         private async Task DecodeImage(ConcurrentQueue<IProcessableImage> queue)
@@ -173,7 +179,6 @@ namespace imageStacker.Core
             {
                 if (!dataToParse.TryDequeue(out var data))
                 {
-                    //   Console.WriteLine("nothing to parse");
                     await Task.Delay(100);
                     await Task.Yield();
                     continue;
@@ -194,16 +199,14 @@ namespace imageStacker.Core
                 bmp.UnlockBits(bmp1Data);
                 bmp.Dispose();
                 data.Dispose();
-                Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ParseBuffer");
+                logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
 
                 while (queue.Count > processQueueLength)
                 {
-                    // Console.WriteLine("waiting to parse");
                     await Task.Delay(100);
                     await Task.Yield();
                 }
             }
-            Console.WriteLine("finished decoding");
         }
 
         public async Task Produce(ConcurrentQueue<IProcessableImage> queue)
@@ -227,7 +230,7 @@ namespace imageStacker.Core
 
     public class ImageMutliFileOrderedReader : IImageReader
     {
-        public ImageMutliFileOrderedReader(string folderName, string filter = "*.JPG")
+        public ImageMutliFileOrderedReader(ILogger logger, string folderName, string filter = "*.JPG")
         {
             this.filenames = new Queue<string>(Directory.GetFiles(folderName, filter, new EnumerationOptions
             {
@@ -235,16 +238,21 @@ namespace imageStacker.Core
                 IgnoreInaccessible = true,
                 MatchCasing = MatchCasing.CaseInsensitive
             }));
-            Console.Error.WriteLine($"Items found: {filenames.Count}");
+            this.logger = logger;
+            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
-        public ImageMutliFileOrderedReader(string[] files)
+        public ImageMutliFileOrderedReader(ILogger logger, string[] files)
         {
             this.filenames = new Queue<string>(files);
+            this.logger = logger;
+            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
         private const int processQueueLength = 8;
         private const int publishQueueLength = 8;
         private const int readQueueLength = 8;
+
+        private readonly ILogger logger;
         private readonly Queue<string> filenames;
 
         private readonly CancellationTokenSource readingFinished = new CancellationTokenSource();
@@ -261,8 +269,8 @@ namespace imageStacker.Core
             {
                 try
                 {
-                    Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ReadBuffer");
-                    Logger.loggerInstance.NotifyFillstate(i, "FilesRead");
+                    logger.NotifyFillstate(dataToParse.Count, "ReadBuffer");
+                    logger.NotifyFillstate(i, "FilesRead");
                     dataToParse.Enqueue((new MemoryStream(File.ReadAllBytes(filename), false), i));
                     i++;
                 }
@@ -274,7 +282,6 @@ namespace imageStacker.Core
                 }
             }
             readingFinished.Cancel();
-            Console.WriteLine("Finished reading" + i.ToString());
         }
 
         private async Task DecodeImage(ConcurrentQueue<(IProcessableImage, int)> queue)
@@ -283,7 +290,6 @@ namespace imageStacker.Core
             {
                 if (!dataToParse.TryDequeue(out var data))
                 {
-                    //   Console.WriteLine("nothing to parse");
                     await Task.Delay(100);
                     await Task.Yield();
                     continue;
@@ -304,16 +310,14 @@ namespace imageStacker.Core
                 bmp.UnlockBits(bmp1Data);
                 bmp.Dispose();
                 data.Item1.Dispose();
-                Logger.loggerInstance.NotifyFillstate(dataToParse.Count, "ParseBuffer");
+                logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
 
                 while (queue.Count > processQueueLength)
                 {
-                    // Console.WriteLine("waiting to parse");
                     await Task.Delay(100);
                     await Task.Yield();
                 }
             }
-            Console.WriteLine("finished decoding");
             parsingFinished.Cancel();
         }
 
@@ -322,7 +326,7 @@ namespace imageStacker.Core
             int nextImageIndex = 0;
             while (!parsingFinished.Token.IsCancellationRequested)
             {
-                Logger.loggerInstance.NotifyFillstate(dataToPublish.Count, "Publishbuffer");
+                logger.NotifyFillstate(dataToPublish.Count, "Publishbuffer");
                 if (dataToPublish.Count == 0)
                 {
                     await Task.Delay(100);
@@ -346,12 +350,10 @@ namespace imageStacker.Core
 
                 while (queue.Count > publishQueueLength)
                 {
-                    // Console.WriteLine("waiting to parse");
                     await Task.Delay(100);
                     await Task.Yield();
                 }
             }
-            Console.WriteLine("finished decoding");
         }
 
         public async Task Produce(ConcurrentQueue<IProcessableImage> queue)

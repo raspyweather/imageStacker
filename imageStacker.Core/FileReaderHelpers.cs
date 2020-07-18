@@ -20,7 +20,6 @@ namespace imageStacker.Core
         {
             foreach (var filename in filenames)
             {
-                // Console.WriteLine($"Idx: {i++} File: {filename}");
                 try
                 {
                     target.Post(MutableImage.FromFile(filename));
@@ -33,7 +32,6 @@ namespace imageStacker.Core
         {
             foreach (var filename in filenames)
             {
-                //   Console.WriteLine($"Idx: {i++} File: {filename}");
                 try
                 {
                     var bmp1 = new Bitmap(filename);
