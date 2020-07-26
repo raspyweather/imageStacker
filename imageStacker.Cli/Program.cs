@@ -1,5 +1,8 @@
 ﻿using CommandLine;
 using imageStacker.Core;
+using imageStacker.Core.ByteImage;
+using imageStacker.Core.ByteImage.Filters;
+using imageStacker.Core.Readers;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,7 +12,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Cli
@@ -29,169 +34,246 @@ namespace imageStacker.Cli
             //
             //            args = new string[] { @"stackImage", @"--inputFolder=C:\Users\armbe\OneDrive\Dokumente\PlatformIO\Projects\imageStacker\imageStacker.Piping.Cli\data", "--outputFolder=.", "--outputFile=stacked" };
             //  args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
-            args = @"stackImage --inputFolder=F:\2020 --outputFile=2020F --outputFolder=.".Split(' ');
+            // args = @"stackImage --inputFolder=F:\2020 --outputFile=2020F --outputFolder=.".Split(' ');
             //  args = @"stackContinuous --inputFolder=F:\2020 --outputFile=2020 --StackCount=5 --outputFolder=.".Split(' ');
-            //  args = @"stackProgressive --inputFolder=F:\2020 --outputFile=2020P --outputFolder=.".Split(' ');
+            //args = @"stackContinuous --StackCount=5 --inputFolder=L:\Canada\timelapses\202007100014 --outputToPipe".Split(' ');
+            //args = @"stackImage --inputFolder=C:\202007192249 --outputFile=2020F --outputFolder=.".Split(' ');
+            args = @"stackProgressive --inputFolder=C:\202007192249 --outputFile=2020F --outputFolder=.".Split(' ');
+            //   args = @"test".Split(' ');
             Stopwatch st = new Stopwatch();
             st.Start();
 
-            IImageReader inputMode = null;
-            IImageWriter outputMode = null;
-            List<IFilter> filters = new List<IFilter> { new MaxFilter() };
-            IImageProcessingStrategy processingStrategy = null;
+            IMutableImageFactory<MutableByteImage> factory = null;
+            IImageReader<MutableByteImage> inputMode = null;
+            IImageWriter<MutableByteImage> outputMode = null;
+            ILogger logger = null;
+
+            List<IFilter<MutableByteImage>> filters = new List<IFilter<MutableByteImage>> { new MaxFilter() };
+            IImageProcessingStrategy<MutableByteImage> processingStrategy = null;
             bool throwMe = false;
 
-            IImageReader setInput(CommonOptions commonOptions)
+            void setupCommons(CommonOptions info)
             {
-                if (commonOptions.UseInputPipe)
-                {
-                    var inputSize = commonOptions.InputSize;
-                    if (string.IsNullOrWhiteSpace(inputSize))
-                    {
-                        throw new ArgumentException("Inputsize must be defined for inputpipes ");
-                    }
+                logger = CreateLogger(info);
+                factory = new MutableByteImageFactory(logger);
 
-                    var wh = Regex.Split(inputSize, "[^0-9]");
-                    int.TryParse(wh[0], out int width);
-                    int.TryParse(wh[1], out int height);
+                logger?.WriteLine(info.ToString().Replace(",", Environment.NewLine), Verbosity.Info);
+                bool throwMeHere = false;
 
-                    return new ImageStreamReader(
-                        Process.GetCurrentProcess().StandardInput.BaseStream,
-                        width,
-                        height,
-                        PixelFormat.Format24bppRgb);
-                }
-                if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
-                {
-                    return new ImageMutliFileOrderedReader(commonOptions.InputFiles.ToArray());
-                }
-                if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
-                {
-                    Console.Error.WriteLineColored("Currently only *.jpg input supported", ConsoleColor.Yellow, ConsoleColor.Black);
-                    if (!Directory.Exists(commonOptions.InputFolder))
-                    {
-                        Console.Error.WriteLineColored($"InputFolder does not exist {commonOptions.InputFolder}", ConsoleColor.Yellow, ConsoleColor.Black);
-                    }
-                    return new ImageMutliFileOrderedReader(commonOptions.InputFolder);
-                }
-                Console.Error.WriteLineColored("No Input Mode defined", ConsoleColor.Red, ConsoleColor.Black);
-                throwMe = true;
-                return null;
-            }
+                (inputMode, throwMeHere) = SetInput(info, factory, logger);
+                throwMe |= throwMeHere;
 
-            IImageWriter setOutput(CommonOptions commonOptions)
-            {
-                if (commonOptions.UseOutputPipe)
-                {
-                    return new ImageStreamWriter(Console.OpenStandardOutput());
-                }
-
-                if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder) &&
-                    !string.IsNullOrWhiteSpace(commonOptions.OutputFile))
-                {
-                    return new ImageFileWriter(commonOptions.OutputFile, commonOptions.OutputFolder);
-                }
-
-                Console.Error.WriteLineColored("No Output Mode defined", ConsoleColor.Red, ConsoleColor.Black);
-                Console.Error.WriteLine("Consider specifying --UseOutputPipe or --OutputFolder and --OutputFile");
-                Console.Error.WriteLine();
-                throwMe = true;
-                return null;
+                (outputMode, throwMeHere) = SetOutput(info, logger, factory);
+                throwMe |= throwMeHere;
             }
 
             var result = Parser.Default
                 .ParseArguments<InfoOptions,
                                 StackAllOptions,
                                 StackProgressiveOptions,
-                                StackContinuousOptions>(args)
+                                StackContinuousOptions,
+                                TestOptions>(args)
                 .WithParsed<InfoOptions>(info =>
                 {
-                    Console.WriteLine("[INFO]", ConsoleColor.White, ConsoleColor.Black);
                     GetInfo(info);
                     return;
                 })
                 .WithParsed<StackAllOptions>(info =>
                 {
-                    Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
+                    setupCommons(info);
 
+                    // todo switch between stackall and stackallmerge, if supported by filter
                     // processingStrategy = new StackAllStrategy();
                     // might be unsafe
-                    processingStrategy = new StackAllMergeStrategy();
-                    inputMode = setInput(info);
-                    outputMode = setOutput(info);
+
+                    processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
 
                 })
                 .WithParsed<StackProgressiveOptions>(info =>
                 {
-                    Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
-
-                    processingStrategy = new StackProgressiveStrategy();
-                    inputMode = setInput(info);
-                    outputMode = setOutput(info);
+                    setupCommons(info);
+                    processingStrategy = new StackProgressiveStrategy<MutableByteImage>(logger, factory);
                 })
                 .WithParsed<StackContinuousOptions>(info =>
                 {
-                    Console.WriteLine(info.ToString().Replace(",", Environment.NewLine));
+                    setupCommons(info);
+
                     if (info.Count == 0)
                     {
-                        Console.WriteLine("You have to define --stackCount for continuous stacking");
+                        logger?.WriteLine("You have to define --stackCount for continuous stacking", Verbosity.Error);
                         throwMe = true;
                     }
-                    processingStrategy = new StackContinousStrategy(info.Count);
-                    inputMode = setInput(info);
-                    outputMode = setOutput(info);
+
+                    processingStrategy = new StackContinousStrategy<MutableByteImage>(info.Count, logger, factory);
                 })
+                .WithParsed<TestOptions>(async info =>
+              {
+                  info.UseOutputPipe = false;
+                  info.OutputFile = ".";
+                  info.OutputFolder = ".";
+
+                  logger = new Logger(Console.Out);
+
+                  factory = new MutableByteImageFactory(logger);
+
+                  inputMode = new TestImageReadeer<MutableByteImage>
+                     (info.Count,
+                     info.Width,
+                     info.Height,
+                     PixelFormat.Format24bppRgb,
+                     logger,
+                     factory);
+
+                  outputMode = new TestImageWriter<MutableByteImage>(logger, factory);
+
+                  processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+
+                  await RunBenchmark(info, logger, new MutableByteImageFactory(logger));
+
+                  Process.GetCurrentProcess().Close();
+              })
                 .WithNotParsed(x =>
-                {
-                    Console.Error.WriteLineColored(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), ConsoleColor.Red);
-                });
+                    logger?.WriteLine(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), Verbosity.Error));
 
             if (throwMe)
             {
-                Console.Error.WriteLineColored("Invalid Configuration, see issues above.", ConsoleColor.Red, ConsoleColor.Black);
+                logger?.WriteLine("Invalid Configuration, see issues above.", Verbosity.Error);
                 return;
             }
 
             if (inputMode == null || outputMode == null)
             {
-                Console.Error.WriteLine($"Input: {inputMode}, Output:{outputMode}");
-                Console.Error.WriteLineColored("IO undefined", ConsoleColor.Red, ConsoleColor.Black);
+                logger?.WriteLine($"Input: {inputMode}, Output:{outputMode}", Verbosity.Error);
+                logger?.WriteLine("IO undefined", Verbosity.Error);
                 return;
             }
             if (processingStrategy == null)
             {
-                Console.Error.WriteLineColored("Not processing strategy defined", ConsoleColor.Red, ConsoleColor.Black);
+                logger?.WriteLine("Not processing strategy defined", Verbosity.Error);
             }
 
-            Console.WriteLine($"{inputMode} {outputMode} {processingStrategy}");
-            /*
-                        var queue = new ConcurrentQueue<IProcessableImage>();
-                        var t = Task.Run(() => inputMode.Produce(queue));
-                        int i = 0;
-                        while (true)
-                        {
-                            if (queue.TryDequeue(out var z))
-                            {
-                                Console.WriteLine($"i:{i++:d2}");
-                            }
-                        }*/
-
+            logger?.WriteLine($"{inputMode} {outputMode} {processingStrategy}", Verbosity.Info);
 
             await processingStrategy.Process(inputMode, filters, outputMode);
             st.Stop();
-            Console.WriteLine($"Processing took ${st.ElapsedMilliseconds / 1000d}");
+            logger?.WriteLine($"Processing took {st.ElapsedMilliseconds / 1000d}", Verbosity.Info);
+
+            logger?.Dispose();
         }
 
-        static void GetInfo(InfoOptions info)
+        private static (IImageWriter<MutableByteImage>, bool throwMe) SetOutput(CommonOptions commonOptions, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
         {
-            Console.WriteLine(info.ToString());
+            if (commonOptions.UseOutputPipe)
+            {
+                return (new ImageStreamWriter<MutableByteImage>(logger, factory, Console.OpenStandardOutput()), false);
+            }
 
-            static void printSize(Size sz) { Console.WriteLine($"{sz.Width} {sz.Height}"); }
-            static void printPixelFormat(PixelFormat pixelFormat) { Console.WriteLine(Enum.GetName(typeof(PixelFormat), pixelFormat)); }
+            if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder) &&
+                !string.IsNullOrWhiteSpace(commonOptions.OutputFile))
+            {
+                return (new ImageFileWriter<MutableByteImage>(commonOptions.OutputFile, commonOptions.OutputFolder, factory), false);
+            }
 
-            if (info.UseInputPipe) { Console.Error.WriteLine("UseInputPipe Not supported for options", ConsoleColor.Red, ConsoleColor.Black); }
+            logger?.WriteLine("No Output Mode defined", Verbosity.Error);
+            logger?.WriteLine("Consider specifying --UseOutputPipe or --OutputFolder and --OutputFile", Verbosity.Error);
+            logger?.WriteLine("", Verbosity.Error);
+            return (null, true);
+        }
 
-            if (System.IO.Directory.Exists(info.InputFolder))
+        private static (IImageReader<MutableByteImage>, bool throwMe) SetInput(CommonOptions commonOptions, IMutableImageFactory<MutableByteImage> factory, ILogger logger)
+        {
+            if (commonOptions.UseInputPipe)
+            {
+                var inputSize = commonOptions.InputSize;
+                if (string.IsNullOrWhiteSpace(inputSize))
+                {
+                    throw new ArgumentException("Inputsize must be defined for inputpipes ");
+                }
+
+                var wh = Regex.Split(inputSize, "[^0-9]");
+                int.TryParse(wh[0], out int width);
+                int.TryParse(wh[1], out int height);
+
+                return (new ImageStreamReader<MutableByteImage>(
+                    logger,
+                    factory,
+                    Console.OpenStandardOutput(width * height * 3),
+                    width,
+                    height,
+                    PixelFormat.Format24bppRgb), false);
+            }
+            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
+            {
+                return (new ImageFileReader<MutableByteImage>(logger, factory, commonOptions.InputFiles.ToArray()), false);
+            }
+            if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
+            {
+                logger?.WriteLine("Currently only *.jpg input supported", Verbosity.Warning);
+                if (!Directory.Exists(commonOptions.InputFolder))
+                {
+                    logger?.WriteLine($"InputFolder does not exist {commonOptions.InputFolder}", Verbosity.Warning);
+                }
+                return (new ImageFileReader<MutableByteImage>(logger, factory, commonOptions.InputFolder), false);
+            }
+
+            logger?.WriteLine("No Input Mode defined", Verbosity.Error);
+            return (null, true);
+        }
+
+        private static ILogger CreateLogger(CommonOptions commonOptions)
+        {
+            if (commonOptions.UseOutputPipe)
+            {
+                return new Logger(Console.Error);
+            }
+            return new Logger(Console.Out);
+        }
+
+        private static async Task RunBenchmark(TestOptions options, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
+        {
+            try
+            {
+                logger.WriteLine("Running Benchmarks", Verbosity.Info);
+
+                logger.WriteLine("Testing Filters", Verbosity.Info);
+
+                foreach (var filter in new List<IFilter<MutableByteImage>> { new MinFilter(), new MinVecFilter(), new MaxFilter(), new MaxVecFilter(),
+                    new MinFilter(), new MinVecFilter(), new MaxFilter(), new MaxVecFilter() })
+                {
+                    Stopwatch stopwatch = new Stopwatch();
+                    var imageReadeer = new TestImageReadeer<MutableByteImage>
+                        (options.Count,
+                        options.Width,
+                        options.Height,
+                        PixelFormat.Format24bppRgb,
+                        logger,
+                        factory);
+                    var imageWriter = new ImageFileWriter<MutableByteImage>("name", ".", factory);
+                    var strategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+                    stopwatch.Start();
+                    await strategy.Process(imageReadeer, new List<IFilter<MutableByteImage>> { filter }, imageWriter);
+                    stopwatch.Stop();
+                    logger.WriteLine($"Fitler {filter.Name} took {stopwatch.ElapsedMilliseconds}", Verbosity.Info);
+                }
+
+            }
+            catch (Exception e)
+            {
+                logger.LogException(e);
+                throw;
+            }
+
+        }
+        private static void GetInfo(InfoOptions info)
+        {
+            Console.Error.WriteLine(info.ToString());
+
+            static void printSize(Size sz) { Console.Error.WriteLine($"{sz.Width} {sz.Height}"); }
+            static void printPixelFormat(PixelFormat pixelFormat) { Console.Error.WriteLine(Enum.GetName(typeof(PixelFormat), pixelFormat)); }
+
+            if (info.UseInputPipe) { Console.Error.WriteLine("UseInputPipe Not supported for options"); }
+
+            if (Directory.Exists(info.InputFolder))
             {
                 // TODO Adjust search pattern
                 var files = Directory.GetFiles(info.InputFolder, "*.jpg", new EnumerationOptions
@@ -213,25 +295,7 @@ namespace imageStacker.Cli
                 printPixelFormat(FileReaderHelpers.GetPixelFormat(info.InputFiles.First()));
                 return;
             }
-            Console.Error.WriteLine("No Input Files could be found", ConsoleColor.Red, ConsoleColor.Black);
-
-        }
-
-    }
-
-    internal static class ConsoleExtensions
-    {
-        public static void WriteLineColored(this TextWriter consoleOut, string text, ConsoleColor? foreground = null, ConsoleColor? background = null)
-        {
-            var foregroundColor = Console.ForegroundColor;
-            var backgroundColor = Console.BackgroundColor;
-            Console.ForegroundColor = foreground ?? foregroundColor;
-            Console.BackgroundColor = background ?? backgroundColor;
-
-            consoleOut.WriteLine(text);
-
-            Console.ForegroundColor = foregroundColor;
-            Console.BackgroundColor = backgroundColor;
+            Console.Error.WriteLine("No Input Files could be found");
         }
     }
 }
