@@ -22,6 +22,20 @@ namespace imageStacker.Cli
         Stream
     }
 
+    [Verb("test")]
+    public class TestOptions : CommonOptions
+    {
+        [Option("Count")]
+        public int Count { get; set; } = 10;
+
+        [Option("Width")]
+        public int Width { get; set; } = 4 * 1920;
+
+        [Option("Height")]
+        public int Height { get; set; } = 4 * 1080;
+
+    }
+
     public abstract class CommonOptions : ICommonOptions
     {
         [Option("outputToPipe", Required = false)]
