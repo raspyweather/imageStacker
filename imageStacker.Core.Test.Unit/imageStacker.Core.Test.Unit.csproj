@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\imageStacker\imageStacker.Core\imageStacker.Core.csproj" />
+    <ProjectReference Include="..\imageStacker.Core\imageStacker.Core.csproj" />
   </ItemGroup>
 
 </Project>
