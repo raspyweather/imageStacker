@@ -7,7 +7,7 @@ using System.Text;
 
 namespace imageStacker.Core.Test.Unit.ByteImage
 {
-    public class MutableByteImageProvider
+    public class MutableByteImageProvider : IImageProvider<MutableByteImage>
     {
         private readonly int width, height;
         private readonly PixelFormat pixelFormat = PixelFormat.Format24bppRgb;
@@ -37,7 +37,7 @@ namespace imageStacker.Core.Test.Unit.ByteImage
             return new MutableByteImage(width, height, PixelFormat.Format24bppRgb, data);
         }
 
-        public MutableByteImage PreparePrefilledImage(byte value)
+        public MutableByteImage PreparePrefilledImage(int value)
         {
             int necessaryBytes = width * height * Image.GetPixelFormatSize(pixelFormat) / 8;
 
@@ -45,7 +45,7 @@ namespace imageStacker.Core.Test.Unit.ByteImage
 
             for (int i = 0; i < necessaryBytes; i++)
             {
-                data[i] = value;
+                data[i] = (byte)(value % 256);
             }
 
             return new MutableByteImage(width, height, PixelFormat.Format24bppRgb, data);
