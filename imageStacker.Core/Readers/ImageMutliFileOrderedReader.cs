@@ -66,7 +66,7 @@ namespace imageStacker.Core.Readers
 
         private async Task DecodeImage(ConcurrentQueue<(T, int)> queue)
         {
-            while (!readingFinished.Token.IsCancellationRequested)
+            while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
                 if (!dataToParse.TryDequeue(out var data))
                 {
@@ -104,7 +104,7 @@ namespace imageStacker.Core.Readers
         private async Task Publish(ConcurrentQueue<T> queue)
         {
             int nextImageIndex = 0;
-            while (!parsingFinished.Token.IsCancellationRequested)
+            while (!parsingFinished.Token.IsCancellationRequested || !dataToPublish.IsEmpty)
             {
                 logger.NotifyFillstate(dataToPublish.Count, "Publishbuffer");
                 if (dataToPublish.Count == 0)

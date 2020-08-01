@@ -63,7 +63,7 @@ namespace imageStacker.Core.Readers
 
         private async Task DecodeImage(ConcurrentQueue<T> queue)
         {
-            while (!readingFinished.Token.IsCancellationRequested)
+            while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
                 if (!dataToParse.TryDequeue(out var data))
                 {
