@@ -33,13 +33,10 @@ namespace imageStacker.Cli
             //  - --files --folder --except --reverse --skip
             //
             //            args = new string[] { @"stackImage", @"--inputFolder=C:\Users\armbe\OneDrive\Dokumente\PlatformIO\Projects\imageStacker\imageStacker.Piping.Cli\data", "--outputFolder=.", "--outputFile=stacked" };
-            //  args = @"stackImage --inputFolder=L:\Canada\timelapses\202006242150 --outputFile=202006242150 --outputFolder=.".Split(' ');
-            // args = @"stackImage --inputFolder=F:\2020 --outputFile=2020F --outputFolder=.".Split(' ');
-            //  args = @"stackContinuous --inputFolder=F:\2020 --outputFile=2020 --StackCount=5 --outputFolder=.".Split(' ');
-            //args = @"stackContinuous --StackCount=5 --inputFolder=L:\Canada\timelapses\202007100014 --outputToPipe".Split(' ');
-            //args = @"stackImage --inputFolder=C:\202007192249 --outputFile=2020F --outputFolder=.".Split(' ');
-            args = @"stackProgressive --inputFolder=C:\202007192249 --outputFile=2020F --outputFolder=.".Split(' ');
-            //   args = @"test".Split(' ');
+            // args = @"stackProgressive --inputFolder=C:\dampfkadse\flughafen --outputFile=frame --outputFolder=C:\dampfkadse\flughafenS".Split(' ');
+            // args = @"stackContinuous --inputFolder=I:\frames --StackCount=100 --outputFile=frame --outputFolder=I:\c100".Split(' ');
+            //  args = @"stackImage --inputFolder=H:\timelapes\202006182013 --outputFile=20200811-s2 --outputFolder=.".Split(' ');
+            args = @"test".Split(' ');
             Stopwatch st = new Stopwatch();
             st.Start();
 
@@ -48,7 +45,7 @@ namespace imageStacker.Cli
             IImageWriter<MutableByteImage> outputMode = null;
             ILogger logger = null;
 
-            List<IFilter<MutableByteImage>> filters = new List<IFilter<MutableByteImage>> { new MaxFilter() };
+            List<IFilter<MutableByteImage>> filters = new List<IFilter<MutableByteImage>> { new AttackDecayVecFilter()/* new MaxVecFilter(), new MinVecFilter()*/ };
             IImageProcessingStrategy<MutableByteImage> processingStrategy = null;
             bool throwMe = false;
 
@@ -106,32 +103,32 @@ namespace imageStacker.Cli
 
                     processingStrategy = new StackContinousStrategy<MutableByteImage>(info.Count, logger, factory);
                 })
-                .WithParsed<TestOptions>(async info =>
-              {
-                  info.UseOutputPipe = false;
-                  info.OutputFile = ".";
-                  info.OutputFolder = ".";
+                .WithParsed<TestOptions>(info =>
+             {
+                 info.UseOutputPipe = false;
+                 info.OutputFile = ".";
+                 info.OutputFolder = ".";
 
-                  logger = new Logger(Console.Out);
+                 logger = new Logger(Console.Out);
 
-                  factory = new MutableByteImageFactory(logger);
+                 factory = new MutableByteImageFactory(logger);
 
-                  inputMode = new TestImageReadeer<MutableByteImage>
-                     (info.Count,
-                     info.Width,
-                     info.Height,
-                     PixelFormat.Format24bppRgb,
-                     logger,
-                     factory);
+                 inputMode = new TestImageReader<MutableByteImage>
+                    (info.Count,
+                    info.Width,
+                    info.Height,
+                    PixelFormat.Format24bppRgb,
+                    logger,
+                    factory);
 
-                  outputMode = new TestImageWriter<MutableByteImage>(logger, factory);
+                 outputMode = new TestImageWriter<MutableByteImage>(logger, factory);
 
-                  processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+                 processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
 
-                  await RunBenchmark(info, logger, new MutableByteImageFactory(logger));
+                 RunBenchmark(info, logger, new MutableByteImageFactory(logger)).Wait();
 
-                  Process.GetCurrentProcess().Close();
-              })
+                 Process.GetCurrentProcess().Close();
+             })
                 .WithNotParsed(x =>
                     logger?.WriteLine(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), Verbosity.Error));
 
@@ -204,7 +201,7 @@ namespace imageStacker.Cli
             }
             if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
             {
-                return (new ImageFileReader<MutableByteImage>(logger, factory, commonOptions.InputFiles.ToArray()), false);
+                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, commonOptions.InputFiles.ToArray()), false);
             }
             if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
             {
@@ -213,7 +210,7 @@ namespace imageStacker.Cli
                 {
                     logger?.WriteLine($"InputFolder does not exist {commonOptions.InputFolder}", Verbosity.Warning);
                 }
-                return (new ImageFileReader<MutableByteImage>(logger, factory, commonOptions.InputFolder), false);
+                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, commonOptions.InputFolder), false);
             }
 
             logger?.WriteLine("No Input Mode defined", Verbosity.Error);
@@ -237,23 +234,31 @@ namespace imageStacker.Cli
 
                 logger.WriteLine("Testing Filters", Verbosity.Info);
 
-                foreach (var filter in new List<IFilter<MutableByteImage>> { new MinFilter(), new MinVecFilter(), new MaxFilter(), new MaxVecFilter(),
-                    new MinFilter(), new MinVecFilter(), new MaxFilter(), new MaxVecFilter() })
+                foreach (var filter in new List<IFilter<MutableByteImage>> {
+                    new MinFilter(),
+                    new MinVecFilter(),
+                    new MaxFilter(),
+                    new MaxVecFilter(),
+                    new AttackDecayFilter(),
+                    new AttackDecayVecFilter() })
                 {
                     Stopwatch stopwatch = new Stopwatch();
-                    var imageReadeer = new TestImageReadeer<MutableByteImage>
-                        (options.Count,
-                        options.Width,
-                        options.Height,
-                        PixelFormat.Format24bppRgb,
-                        logger,
-                        factory);
-                    var imageWriter = new ImageFileWriter<MutableByteImage>("name", ".", factory);
+
+
+                    var imageReader = new TestImageReader<MutableByteImage>
+                                          (options.Count,
+                                          options.Width,
+                                          options.Height,
+                                          PixelFormat.Format24bppRgb,
+                                          logger,
+                                          factory);
+                    var imageWriter = new ImageStreamWriter<MutableByteImage>(logger, factory, Stream.Null);
                     var strategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+
                     stopwatch.Start();
-                    await strategy.Process(imageReadeer, new List<IFilter<MutableByteImage>> { filter }, imageWriter);
+                    await strategy.Process(imageReader, new List<IFilter<MutableByteImage>> { filter }, imageWriter);
                     stopwatch.Stop();
-                    logger.WriteLine($"Fitler {filter.Name} took {stopwatch.ElapsedMilliseconds}", Verbosity.Info);
+                    logger.WriteLine($"Filter {filter.Name} took {stopwatch.ElapsedMilliseconds}", Verbosity.Info);
                 }
 
             }
