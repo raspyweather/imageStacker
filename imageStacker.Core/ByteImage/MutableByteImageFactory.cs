@@ -2,6 +2,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace imageStacker.Core
@@ -16,7 +17,7 @@ namespace imageStacker.Core
 
         public MutableByteImage Clone(MutableByteImage image)
         {
-            return new MutableByteImage(image.Width, image.Height, image.PixelFormat, image.Data);
+            return new MutableByteImage(image.Width, image.Height, image.PixelFormat, image.Data.ToArray());
         }
 
         public MutableByteImage FromBytes(int width, int height, byte[] data, PixelFormat pixelFormat = PixelFormat.Format24bppRgb)
