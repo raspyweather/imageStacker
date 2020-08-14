@@ -139,7 +139,7 @@ namespace imageStacker.Core.Readers
         public async override Task Produce(ConcurrentQueue<T> queue)
         {
             var readingTask = Task.Run(() => ReadFromDisk());
-            var decodingTasks = Enumerable.Range(0, 2).Select(x => (Task)Task.Run(() => DecodeImage(dataToPublish)));
+            var decodingTasks = Enumerable.Range(0, 6).Select(x => (Task)Task.Run(() => DecodeImage(dataToPublish)));
             var orderingTask = Task.Run(() => Publish(queue));
 
             await Task.WhenAll(Task.WhenAll(decodingTasks), orderingTask, readingTask);

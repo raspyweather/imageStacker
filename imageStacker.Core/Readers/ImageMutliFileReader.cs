@@ -100,19 +100,16 @@ namespace imageStacker.Core.Readers
         public override async Task Produce(ConcurrentQueue<T> queue)
         {
             var readingTask = Task.Run(() => ReadFromDisk());
-            var decodingTask = Task.Run(() => DecodeImage(queue));
+            var decodingTasks = Enumerable.Range(0, 6).Select(x => Task.Run(() => DecodeImage(queue)));
 
-            var decodingTasks = Enumerable.Range(0, 4).Select(x => (Task)Task.Run(() => DecodeImage(queue)));
+            await Task.WhenAll(Task.WhenAll(decodingTasks), readingTask);
 
-            await readingTask;
-            await Task.WhenAll(decodingTasks);
-            //await decodingTask;
-
-            if (decodingTask.IsFaulted || readingTask.IsFaulted)
+            if (decodingTasks.Any(x => x.IsFaulted) || readingTask.IsFaulted)
             {
-                throw new Exception();
+                throw decodingTasks.FirstOrDefault(x => x.Exception != null)?.Exception
+                      ?? readingTask.Exception
+                      ?? new Exception("unkown stuff happened");
             }
-
         }
     }
 

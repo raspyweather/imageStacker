@@ -42,7 +42,7 @@ namespace imageStacker.Cli
         public virtual bool UseOutputPipe { get; set; }
         [Option("outputFolder", Required = false)]
         public virtual string OutputFolder { get; set; }
-        [Option("inputToPipe", Required = false)]
+        [Option("inputFromPipe", Required = false)]
         public virtual bool UseInputPipe { get; set; }
 
         [Option("inputSize", HelpText = "Format: 1920x1080", Required = false)]

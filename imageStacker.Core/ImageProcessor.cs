@@ -165,6 +165,11 @@ namespace imageStacker.Core
                     continue;
                 }
 
+                while (outputQueue.Count > 64)
+                {
+                    await Task.Yield();
+                    await Task.Delay(100);
+                }
 
                 baseImages.AsParallel()
                     .ForAll(data =>
