@@ -1,9 +1,11 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -11,22 +13,23 @@ namespace imageStacker.Core.Readers
 {
     public class ImageFileReader<T> : ImageReaderBase<T> where T : IProcessableImage
     {
-        public ImageFileReader(ILogger logger, IMutableImageFactory<T> factory, string folderName, string filter = "*.JPG")
+        public ImageFileReader(ILogger logger, IMutableImageFactory<T> factory, IImageReaderOptions options)
             : base(logger, factory)
         {
-            this.filenames = new Queue<string>(Directory.GetFiles(folderName, filter, new EnumerationOptions
+            if (options?.Files != null && options.Files.Count() > 0)
             {
-                AttributesToSkip = FileAttributes.System,
-                IgnoreInaccessible = true,
-                MatchCasing = MatchCasing.CaseInsensitive
-            }));
-            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
-        }
+                this.filenames = new Queue<string>(options.Files);
+            }
+            else
+            {
+                this.filenames = new Queue<string>(Directory.GetFiles(options.FolderName, options.Filter, new EnumerationOptions
+                {
+                    AttributesToSkip = FileAttributes.System,
+                    IgnoreInaccessible = true,
+                    MatchCasing = MatchCasing.CaseInsensitive
+                }));
+            }
 
-        public ImageFileReader(ILogger logger, IMutableImageFactory<T> factory, string[] files)
-            : base(logger, factory)
-        {
-            this.filenames = new Queue<string>(files);
             this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
