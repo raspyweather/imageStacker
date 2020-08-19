@@ -57,6 +57,9 @@ namespace imageStacker.Cli
         [Option("inputFolder", Required = false)]
         public virtual string InputFolder { get; set; }
 
+        [Option("inputFilter", HelpText = "Filter for enumerating files of specified inputFolder, e.g. *.jpg")]
+        public virtual string InputFilter { get; set; }
+
         [Option("filters", Required = false, Separator = ',', HelpText = "List of Filters with respective parameters; Example: 'MaxFilter Name=Max,AttackDecayFilter Attack=1.0 Decay=0.2 '")]
         public virtual IEnumerable<string> Filters { get; set; }
 
