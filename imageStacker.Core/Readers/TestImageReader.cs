@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace imageStacker.Core.Readers
 {
-    public class TestImageReadeer<T> : ImageReaderBase<T> where T : IProcessableImage
+    public class TestImageReader<T> : ImageReaderBase<T> where T : IProcessableImage
     {
         private readonly int width, height, count;
         private readonly PixelFormat format;
         private readonly byte[] data1, data2;
-        public TestImageReadeer(int count, int width, int height, PixelFormat format, ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
+        public TestImageReader(int count, int width, int height, PixelFormat format, ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         {
             this.width = width;
             this.height = height;

@@ -26,7 +26,7 @@ namespace imageStacker.Cli
     public class TestOptions : CommonOptions
     {
         [Option("Count")]
-        public int Count { get; set; } = 10;
+        public int Count { get; set; } = 50;
 
         [Option("Width")]
         public int Width { get; set; } = 4 * 1920;
@@ -57,8 +57,8 @@ namespace imageStacker.Cli
         [Option("inputFolder", Required = false)]
         public virtual string InputFolder { get; set; }
 
-        [Option("filters", Required = false, HelpText = "currently not available")]
-        public virtual string Filters { get; set; }
+        [Option("filters", Required = false, Separator = ',', HelpText = "List of Filters with respective parameters; Example: 'MaxFilter Name=Max,AttackDecayFilter Attack=1.0 Decay=0.2 '")]
+        public virtual IEnumerable<string> Filters { get; set; }
 
         public override string ToString()
         {

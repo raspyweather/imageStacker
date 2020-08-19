@@ -1,14 +1,8 @@
 ﻿using FluentAssertions;
-using FluentAssertions.Equivalency;
-using imageStacker.Core.Readers;
 using imageStacker.Core.Test.Unit.ByteImage;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.ObjectModel;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.IsolatedStorage;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
