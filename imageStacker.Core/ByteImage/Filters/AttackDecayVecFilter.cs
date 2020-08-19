@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using imageStacker.Core.Abstraction;
 using System.Runtime.Intrinsics.X86;
-using System.Text;
 
 namespace imageStacker.Core.ByteImage.Filters
 {
@@ -10,12 +8,22 @@ namespace imageStacker.Core.ByteImage.Filters
     /// </summary>
     public class AttackDecayVecFilter : IFilter<MutableByteImage>
     {
-        public string Name => nameof(AttackDecayVecFilter);
+        public AttackDecayVecFilter(IAttackDecayOptions options)
+        {
+            this.Attack = options.Attack;
+            this.Decay = options.Decay;
+            this.Name = options.Name ?? nameof(AttackDecayVecFilter);
+        }
+        public string Name { get; }
+
+        public float Attack { get; }
+        public float Decay { get; }
+
+        public bool IsSupported => Avx.IsSupported;
 
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {
             float MaxFactor = 1;
-            float Attack = 1, Decay = 0.2f;
 
             float[] attackAr = new float[] { Attack, Attack, Attack, Attack };
             float[] decayAr = new float[] { Decay, Decay, Decay, Decay };
@@ -74,7 +82,7 @@ namespace imageStacker.Core.ByteImage.Filters
                     currentPxPtr++;
                     *currentPxPtr = (byte)Avx.Extract(result, 3);
                     currentPxPtr++;
-                    
+
                     nextPxPtr += 4;
 
                 }

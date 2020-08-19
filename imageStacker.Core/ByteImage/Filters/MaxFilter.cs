@@ -1,8 +1,17 @@
-﻿namespace imageStacker.Core.ByteImage.Filters
+﻿using imageStacker.Core.Abstraction;
+
+namespace imageStacker.Core.ByteImage.Filters
 {
     public class MaxFilter : IFilter<MutableByteImage>
     {
-        public string Name => nameof(MaxFilter);
+        public MaxFilter(IMaxFilterOptions options = null)
+        {
+            this.Name = options?.Name ?? nameof(MaxFilter);
+        }
+
+        public string Name { get; }
+
+        public bool IsSupported => true;
 
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {

@@ -1,10 +1,18 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
 
 namespace imageStacker.Core.ByteImage.Filters
 {
     public class MinFilter : IFilter<MutableByteImage>
     {
-        public string Name => nameof(MinFilter);
+        public MinFilter(IMinFilterOptions options = null)
+        {
+            this.Name = options?.Name ?? nameof(MinFilter);
+        }
+
+        public string Name { get; }
+
+        public bool IsSupported => true;
+
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {
             int length = nextPicture.Data.Length;

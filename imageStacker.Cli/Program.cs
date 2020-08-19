@@ -4,17 +4,13 @@ using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
 using imageStacker.Core.Readers;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Cli
@@ -23,39 +19,28 @@ namespace imageStacker.Cli
     {
         public static async Task Main(string[] args)
         {
-            // Proposed Syntax - huge todo :D
-            // imagestacker.exe single --folder ./cookies --output 1.png
-
-            // Features:
-            // Verbs
-            //  - linear, single, ramp
-            // File input
-            //  - --files --folder --except --reverse --skip
-            //
-            //            args = new string[] { @"stackImage", @"--inputFolder=C:\Users\armbe\OneDrive\Dokumente\PlatformIO\Projects\imageStacker\imageStacker.Piping.Cli\data", "--outputFolder=.", "--outputFile=stacked" };
-            // args = @"stackProgressive --inputFolder=C:\dampfkadse\flughafen --outputFile=frame --outputFolder=C:\dampfkadse\flughafenS".Split(' ');
-            // args = @"stackContinuous --inputFolder=I:\frames --StackCount=100 --outputFile=frame --outputFolder=I:\c100".Split(' ');
-            //  args = @"stackImage --inputFolder=H:\timelapes\202006182013 --outputFile=20200811-s2 --outputFolder=.".Split(' ');
-            args = @"test".Split(' ');
             Stopwatch st = new Stopwatch();
             st.Start();
 
             IMutableImageFactory<MutableByteImage> factory = null;
+            List<IFilter<MutableByteImage>> filters = null;
             IImageReader<MutableByteImage> inputMode = null;
             IImageWriter<MutableByteImage> outputMode = null;
             ILogger logger = null;
 
-            List<IFilter<MutableByteImage>> filters = new List<IFilter<MutableByteImage>> { new AttackDecayVecFilter()/* new MaxVecFilter(), new MinVecFilter()*/ };
             IImageProcessingStrategy<MutableByteImage> processingStrategy = null;
             bool throwMe = false;
 
             void setupCommons(CommonOptions info)
             {
                 logger = CreateLogger(info);
+                bool throwMeHere = false;
+                (filters, throwMeHere) = ParseFilterParameters(info.Filters);
+                throwMe |= throwMeHere;
+
                 factory = new MutableByteImageFactory(logger);
 
                 logger?.WriteLine(info.ToString().Replace(",", Environment.NewLine), Verbosity.Info);
-                bool throwMeHere = false;
 
                 (inputMode, throwMeHere) = SetInput(info, factory, logger);
                 throwMe |= throwMeHere;
@@ -158,6 +143,46 @@ namespace imageStacker.Cli
             logger?.Dispose();
         }
 
+        private static (List<IFilter<MutableByteImage>> filters, bool throwMe) ParseFilterParameters(IEnumerable<string> optionArgs)
+        {
+            if (optionArgs.Count() == 0)
+            {
+                return (new List<IFilter<MutableByteImage>>(), true);
+            }
+
+            var parameterGroups = new List<List<string>>();
+            var previousList = new List<string> { optionArgs.First() };
+            foreach (var item in optionArgs.Skip(1))
+            {
+                if (item.Contains("="))
+                {
+                    previousList.Add("--" + item.Trim(','));
+                    continue;
+                }
+                parameterGroups.Add(previousList);
+                previousList = new List<string> { item };
+            }
+
+            parameterGroups.Add(previousList);
+
+            var filters = new List<IFilter<MutableByteImage>>();
+            var factory = new MutableByteImageFilterFactory(true);
+
+            foreach (var group in parameterGroups)
+            {
+                var result = Parser.Default
+                        .ParseArguments<MaxFilterOptions,
+                                        MinFilterOptions,
+                                        AttackDecayFilterOptions>(group)
+                                        .WithParsed<MaxFilterOptions>(options => filters.Add(factory.CreateMaxFilter(options)))
+                                        .WithParsed<MinFilterOptions>(options => filters.Add(factory.CreateMinFilter(options)))
+                                        .WithParsed<AttackDecayFilterOptions>(options => filters.Add(factory.CreateAttackDecayFilter(options)))
+                                        .WithNotParsed(e => Console.Write(e.ToString()));
+            }
+
+            return (filters, false);
+        }
+
         private static (IImageWriter<MutableByteImage>, bool throwMe) SetOutput(CommonOptions commonOptions, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
         {
             if (commonOptions.UseOutputPipe)
@@ -235,12 +260,12 @@ namespace imageStacker.Cli
                 logger.WriteLine("Testing Filters", Verbosity.Info);
 
                 foreach (var filter in new List<IFilter<MutableByteImage>> {
-                    new MinFilter(),
-                    new MinVecFilter(),
-                    new MaxFilter(),
-                    new MaxVecFilter(),
-                    new AttackDecayFilter(),
-                    new AttackDecayVecFilter() })
+                    new MinFilter(new MinFilterOptions{ }),
+                    new MinVecFilter(new MinFilterOptions{ }),
+                    new MaxFilter(new MaxFilterOptions{ }),
+                    new MaxVecFilter(new MaxFilterOptions{ }),
+                    new AttackDecayFilter( new AttackDecayFilterOptions{ }),
+                    new AttackDecayVecFilter(new AttackDecayFilterOptions{ }) })
                 {
                     Stopwatch stopwatch = new Stopwatch();
 

@@ -1,21 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using imageStacker.Core.Abstraction;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-using System.Text;
 
 namespace imageStacker.Core.ByteImage.Filters
 {
     public class MinVecFilter : IFilter<MutableByteImage>
     {
-        public string Name => nameof(MinVecFilter);
+        public MinVecFilter(IMinFilterOptions options = null)
+        {
+            this.Name = options?.Name ?? nameof(MinVecFilter);
+        }
+
+        public string Name { get; }
+
+        public bool IsSupported => Sse2.IsSupported;
+
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {
-            if (!Sse2.IsSupported)
-            {
-                throw new NotSupportedException("SSE2 not supported 😒");
-            }
-
             int simdSize = Vector128<byte>.Count;
             int length = currentPicture.Data.Length;
 

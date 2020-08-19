@@ -1,4 +1,4 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -6,14 +6,17 @@ namespace imageStacker.Core.ByteImage.Filters
 {
     public class MaxVecFilter : IFilter<MutableByteImage>
     {
-        public string Name => nameof(MaxVecFilter);
+        public MaxVecFilter(IMaxFilterOptions options = null)
+        {
+            this.Name = options?.Name ?? nameof(MaxVecFilter);
+        }
+
+        public string Name { get; }
+
+        public bool IsSupported => Sse2.IsSupported;
+
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {
-            if (!Sse2.IsSupported)
-            {
-                throw new NotSupportedException("SSE2 not supported 😒");
-            }
-
             int simdSize = Vector128<byte>.Count;
             int length = currentPicture.Data.Length;
 
