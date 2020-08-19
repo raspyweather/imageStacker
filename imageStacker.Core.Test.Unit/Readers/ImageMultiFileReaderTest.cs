@@ -1,10 +1,7 @@
 ﻿using imageStacker.Core.ByteImage;
 using imageStacker.Core.Readers;
 using imageStacker.Core.Test.Unit.ByteImage;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace imageStacker.Core.Test.Unit.Readers
 {

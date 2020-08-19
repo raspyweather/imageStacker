@@ -5,6 +5,8 @@
     {
         public string Name => nameof(ExtremaFilter);
 
+        public bool IsSupported => true;
+
         private readonly int Sigma = 20;
 
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)

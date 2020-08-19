@@ -2,10 +2,8 @@
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
 using System;
-using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Text;
 using Xunit;
 
 namespace imageStacker.Core.Test.Unit.ByteImage.Filters

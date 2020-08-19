@@ -94,9 +94,9 @@ namespace imageStacker.Core
                 await processThread;
                 await writeThread;
             }
-            catch
+            catch (Exception e)
             {
-
+                Console.WriteLine(e.ToString());
             }
         }
     }

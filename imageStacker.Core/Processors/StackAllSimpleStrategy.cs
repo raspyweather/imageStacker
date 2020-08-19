@@ -10,7 +10,7 @@ namespace imageStacker.Core
         public StackAllSimpleStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         {
         }
-        
+
         protected override async Task ProcessingThread(List<IFilter<T>> filters)
         {
             T firstMutableImage = await GetFirstImage();

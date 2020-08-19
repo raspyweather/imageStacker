@@ -23,8 +23,8 @@ namespace imageStacker.Core.Readers
             long length = width * 1L * height * Image.GetPixelFormatSize(format) / 8l;
             data1 = new byte[length];
             data2 = new byte[length];
-      //      random.NextBytes(data1);
-      //      random.NextBytes(data2);
+            random.NextBytes(data1);
+            random.NextBytes(data2);
         }
 
         public async override Task Produce(ConcurrentQueue<T> queue)
