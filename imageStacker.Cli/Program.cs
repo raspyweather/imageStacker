@@ -226,7 +226,7 @@ namespace imageStacker.Cli
             }
             if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
             {
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, commonOptions.InputFiles.ToArray()), false);
+                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { Files = commonOptions.InputFiles.ToArray() }), false);
             }
             if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
             {
@@ -235,7 +235,8 @@ namespace imageStacker.Cli
                 {
                     logger?.WriteLine($"InputFolder does not exist {commonOptions.InputFolder}", Verbosity.Warning);
                 }
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, commonOptions.InputFolder), false);
+
+                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { FolderName = commonOptions.InputFolder, Filter = commonOptions.InputFilter }), false);
             }
 
             logger?.WriteLine("No Input Mode defined", Verbosity.Error);
