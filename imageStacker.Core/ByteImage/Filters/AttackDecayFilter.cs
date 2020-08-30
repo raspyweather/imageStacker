@@ -22,8 +22,6 @@ namespace imageStacker.Core.ByteImage.Filters
 
         public unsafe void Process(MutableByteImage currentPicture, MutableByteImage nextPicture)
         {
-            const float Attack = 1, Decay = 0.2f;
-
             int length = nextPicture.Data.Length;
             fixed (byte* currentPicPtr = currentPicture.Data)
             {
