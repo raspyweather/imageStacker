@@ -150,7 +150,7 @@ namespace imageStacker.Core
         protected override async Task ProcessingThread(List<IFilter<T>> filters)
         {
             T firstData = await GetFirstImage();
-            var baseImages = filters.Select((filter, index) => (filter, image: firstData, index)).ToList();
+            var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstData), index)).ToList();
 
             for (int i = 0; true; i++)
             {
@@ -165,18 +165,23 @@ namespace imageStacker.Core
                     continue;
                 }
 
-                while (outputQueue.Count > 64)
+                while (outputQueue.Count > 32)
                 {
                     await Task.Yield();
                     await Task.Delay(100);
                 }
 
-                baseImages.AsParallel()
-                    .ForAll(data =>
-                    {
-                        data.filter.Process(data.image, nextImage);
-                        outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(i, data.filter.Name)));
-                    });
+                await Task.WhenAll(baseImages.Select(data => Task.Run(() =>
+                  {
+                      data.filter.Process(data.image, nextImage);
+                      outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(i, data.filter.Name)));
+                  })));
+                /* baseImages
+                       .ForEach(data =>
+                       {
+                           data.filter.Process(data.image, nextImage);
+                           outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(i, data.filter.Name)));
+                       });*/
             }
         }
     }
