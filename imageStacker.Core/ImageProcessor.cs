@@ -1,4 +1,5 @@
-﻿using System;
+﻿using imageStacker.Core.Extensions;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
@@ -16,7 +17,7 @@ namespace imageStacker.Core
         {
             T firstMutableImage = await GetFirstImage();
 
-            const int threadsToUtilize = 8;
+            const int threadsToUtilize = 16;
 
             var jobs = new ConcurrentQueue<(IFilter<T> filter, T image)[]>();
 
@@ -160,21 +161,19 @@ namespace imageStacker.Core
                     {
                         break;
                     }
-                    await Task.Delay(100);
 
+                    await Task.Yield();
+                    await Task.Delay(10);
                     continue;
                 }
 
-                while (outputQueue.Count > 32)
-                {
-                    await Task.Yield();
-                    await Task.Delay(100);
-                }
+                await outputQueue.WaitForBufferSpace(32);
 
                 await Task.WhenAll(baseImages.Select(data => Task.Run(() =>
                   {
+                      int index = i;
                       data.filter.Process(data.image, nextImage);
-                      outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(i, data.filter.Name)));
+                      outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(index, data.filter.Name)));
                   })));
                 /* baseImages
                        .ForEach(data =>

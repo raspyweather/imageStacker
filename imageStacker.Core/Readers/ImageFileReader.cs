@@ -1,4 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -58,11 +59,7 @@ namespace imageStacker.Core.Readers
                     bmp1.Dispose();
                 }
                 catch (Exception e) { Console.WriteLine(e); }
-                while (queue.Count > 100)
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+                await queue.WaitForBufferSpace(16);
             }
         }
     }
