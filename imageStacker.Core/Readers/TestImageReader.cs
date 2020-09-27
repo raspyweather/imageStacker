@@ -20,7 +20,7 @@ namespace imageStacker.Core.Readers
             this.count = count;
 
             var random = new Random();
-            long length = width * 1L * height * Image.GetPixelFormatSize(format) / 8l;
+            long length = width * 1L * height * Image.GetPixelFormatSize(format) / 8L;
             data1 = new byte[length];
             data2 = new byte[length];
             random.NextBytes(data1);
