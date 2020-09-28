@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core.Extensions
@@ -17,6 +17,24 @@ namespace imageStacker.Core.Extensions
                 await Task.Delay(50);
                 await Task.Yield();
             }
+        }
+
+        public static async Task<(bool cancelled, T item)> TryDequeueOrWait<T>(this ConcurrentQueue<T> queue, CancellationTokenSource token)
+        {
+            T nextImage;
+            while (!queue.TryDequeue(out nextImage))
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return (true, default);
+                }
+
+                await Task.Delay(25);
+                await Task.Yield();
+                continue;
+            }
+
+            return (false, nextImage);
         }
     }
 }

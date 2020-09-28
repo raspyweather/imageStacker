@@ -67,12 +67,9 @@ namespace imageStacker.Core.Readers
         {
             while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
-                if (!dataToParse.TryDequeue(out var data))
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
-                }
+                var (cancelled, data) = await dataToParse.TryDequeueOrWait(readingFinished);
+                if (cancelled) { break; }
+
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;
                 var height = bmp.Height;

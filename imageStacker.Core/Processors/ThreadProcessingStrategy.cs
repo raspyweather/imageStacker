@@ -1,6 +1,8 @@
-﻿using System;
+﻿using imageStacker.Core.Extensions;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,17 +40,19 @@ namespace imageStacker.Core
                 while (true)
                 {
                     logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
-                    if (!outputQueue.TryDequeue(out var imageInfo))
+
+                    var (cancelled, imageInfo) = await outputQueue.TryDequeueOrWait(outputFinishedToken);
+
+                    if (cancelled)
                     {
-                        if (outputFinishedToken.Token.IsCancellationRequested)
-                        {
-                            // finished
-                            break;
-                        }
-                        await Task.Delay(100);
-                        continue;
+                        break;
                     }
-                    await Task.Run(() => writer.Writefile(imageInfo.image, imageInfo.saveInfo));
+
+                    tasks.Add(Task.Run(() => writer.Writefile(imageInfo.image, imageInfo.saveInfo)));
+
+                    await tasks.WaitForFinishingTasks(128);
+
+                    tasks = tasks.Where(x => !x.IsCompleted).ToList();
                 }
                 await Task.WhenAll(tasks);
                 logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
@@ -60,21 +64,21 @@ namespace imageStacker.Core
                 throw;
             }
         }
+
         protected async Task<T> GetFirstImage()
         {
             while (true)
             {
-                if (!inputQueue.TryDequeue(out var firstData))
+                var (cancelled, firstData) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    continue;
+                    break;
                 }
+
                 return firstData;
             }
+
             throw new InvalidOperationException("No Image could be found");
         }
 
@@ -88,7 +92,16 @@ namespace imageStacker.Core
                 var processThread = Task.Run(() => ProcessingThread(filters).ContinueWith(_ => outputFinishedToken.Cancel()));
                 var writeThread = Task.Run(() => WritingThread(writer));
 
-                await Task.WhenAll(readThread, processThread, writeThread);
+                var tasks = new List<Task> { readThread, processThread, writeThread };
+                await tasks.WaitForFinishingTasks(3);
+                tasks = tasks.Where(x => !x.IsCompleted).ToList();
+
+                while (tasks.Count > 3)
+                {
+                    await Task.WhenAny(tasks);
+                }
+
+                //  await Task.WhenAll(readThread, processThread, writeThread);
 
                 await readThread;
                 await processThread;

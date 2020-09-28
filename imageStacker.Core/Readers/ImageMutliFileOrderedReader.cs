@@ -69,12 +69,12 @@ namespace imageStacker.Core.Readers
         {
             while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
-                if (!dataToParse.TryDequeue(out var data))
+                var (cancelled, data) = await dataToParse.TryDequeueOrWait(readingFinished);
+                if (cancelled)
                 {
-                    await Task.Delay(10);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
+
                 try
                 {
                     var bmp = new Bitmap(data.Item1);

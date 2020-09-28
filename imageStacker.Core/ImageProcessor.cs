@@ -36,15 +36,12 @@ namespace imageStacker.Core
                     await Task.WhenAny(tasks);
                     tasks.Filter(task => !task.IsCompleted);
                 }
-                if (!inputQueue.TryDequeue(out var nextImage))
+
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 if (jobs.TryDequeue(out var currentJob))
@@ -101,15 +98,11 @@ namespace imageStacker.Core
                     continue;
                 }
 
-                if (!inputQueue.TryDequeue(out var nextImage))
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 for (int ii = 0; ii < bufferQueue.Count; ii++)
@@ -155,16 +148,11 @@ namespace imageStacker.Core
 
             for (int i = 0; true; i++)
             {
-                if (!inputQueue.TryDequeue(out var nextImage))
-                {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
 
-                    await Task.Yield();
-                    await Task.Delay(10);
-                    continue;
+                if (cancelled)
+                {
+                    break;
                 }
 
                 await outputQueue.WaitForBufferSpace(32);

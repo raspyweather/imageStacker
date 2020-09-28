@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using imageStacker.Core.Extensions;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -18,35 +18,29 @@ namespace imageStacker.Core
             T firstMutableImage = await GetFirstImage();
             var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstMutableImage), index)).ToList();
 
-            var tasks = new ConcurrentQueue<Task>();
+            var tasks = new List<Task>();
 
             while (true)
             {
-                while (tasks.Count > tasksCount)
+                await tasks.WaitForFinishingTasks(tasksCount);
+
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    await Task.WhenAny(tasks);
-                }
-                if (!inputQueue.TryDequeue(out var nextImage))
-                {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 baseImages.ForEach(data =>
                 {
                     var task = Task.Factory.StartNew(() => data.filter.Process(data.image, nextImage));
-                    tasks.Enqueue(task);
+                    tasks.Add(task);
                     task.Start();
                 });
             }
 
             await Task.WhenAll(tasks);
-            baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
+            baseImages.ForEach(data => outputQueue.Append((data.image, new SaveInfo(null, data.filter.Name))));
         }
     }
 }

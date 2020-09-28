@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using imageStacker.Core.Extensions;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,15 +19,11 @@ namespace imageStacker.Core
 
             while (true)
             {
-                if (!inputQueue.TryDequeue(out var nextImage))
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 foreach (var item in baseImages)
