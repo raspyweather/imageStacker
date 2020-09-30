@@ -1,4 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -56,11 +57,8 @@ namespace imageStacker.Core.Readers
                     i++;
                 }
                 catch (Exception e) { Console.WriteLine(e); }
-                while (dataToParse.Count > readQueueLength)
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+
+                await dataToParse.WaitForBufferSpace(readQueueLength);
             }
             readingFinished.Cancel();
         }
@@ -69,12 +67,9 @@ namespace imageStacker.Core.Readers
         {
             while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
-                if (!dataToParse.TryDequeue(out var data))
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
-                }
+                var (cancelled, data) = await dataToParse.TryDequeueOrWait(readingFinished);
+                if (cancelled) { break; }
+
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;
                 var height = bmp.Height;
@@ -93,11 +88,7 @@ namespace imageStacker.Core.Readers
                 data.Dispose();
                 logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
 
-                while (queue.Count > processQueueLength)
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+                await queue.WaitForBufferSpace(processQueueLength);
             }
         }
 

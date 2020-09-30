@@ -1,4 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -36,7 +37,7 @@ namespace imageStacker.Core.Readers
 
         private const int processQueueLength = 8;
         private const int publishQueueLength = 8;
-        private const int readQueueLength = 8;
+        private const int readQueueLength = 24;
 
         private readonly Queue<string> filenames;
 
@@ -58,11 +59,8 @@ namespace imageStacker.Core.Readers
                     i++;
                 }
                 catch (Exception e) { Console.WriteLine(e); }
-                while (dataToParse.Count > readQueueLength)
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+
+                await dataToParse.WaitForBufferSpace(readQueueLength);
             }
             readingFinished.Cancel();
         }
@@ -71,35 +69,35 @@ namespace imageStacker.Core.Readers
         {
             while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
             {
-                if (!dataToParse.TryDequeue(out var data))
+                var (cancelled, data) = await dataToParse.TryDequeueOrWait(readingFinished);
+                if (cancelled)
                 {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
-                var bmp = new Bitmap(data.Item1);
-                var width = bmp.Width;
-                var height = bmp.Height;
-                var pixelFormat = bmp.PixelFormat;
 
-                var bmp1Data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, pixelFormat);
-                var length = bmp1Data.Stride * bmp1Data.Height;
-
-                byte[] bmp1Bytes = new byte[length];
-                Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
-
-                queue.Enqueue((factory.FromBytes(width, height, bmp1Bytes), data.Item2));
-
-                bmp.UnlockBits(bmp1Data);
-                bmp.Dispose();
-                data.Item1.Dispose();
-                logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
-
-                while (queue.Count > processQueueLength)
+                try
                 {
-                    await Task.Delay(100);
-                    await Task.Yield();
+                    var bmp = new Bitmap(data.Item1);
+                    var width = bmp.Width;
+                    var height = bmp.Height;
+                    var pixelFormat = bmp.PixelFormat;
+
+                    var bmp1Data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, pixelFormat);
+                    var length = bmp1Data.Stride * bmp1Data.Height;
+
+                    byte[] bmp1Bytes = new byte[length];
+                    Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
+
+                    queue.Enqueue((factory.FromBytes(width, height, bmp1Bytes), data.Item2));
+
+                    bmp.UnlockBits(bmp1Data);
+                    bmp.Dispose();
+                    data.Item1.Dispose();
+                    logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
                 }
+                catch (Exception e) { logger.LogException(e); continue; }
+
+                await queue.WaitForBufferSpace(processQueueLength);
             }
             parsingFinished.Cancel();
         }
@@ -131,11 +129,7 @@ namespace imageStacker.Core.Readers
                     }
                 }
 
-                while (queue.Count > publishQueueLength)
-                {
-                    await Task.Delay(100);
-                    await Task.Yield();
-                }
+                await queue.WaitForBufferSpace(publishQueueLength);
             }
         }
 

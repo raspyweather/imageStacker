@@ -1,4 +1,5 @@
-﻿using System;
+﻿using imageStacker.Core.Extensions;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
@@ -16,7 +17,7 @@ namespace imageStacker.Core
         {
             T firstMutableImage = await GetFirstImage();
 
-            const int threadsToUtilize = 8;
+            const int threadsToUtilize = 16;
 
             var jobs = new ConcurrentQueue<(IFilter<T> filter, T image)[]>();
 
@@ -35,15 +36,12 @@ namespace imageStacker.Core
                     await Task.WhenAny(tasks);
                     tasks.Filter(task => !task.IsCompleted);
                 }
-                if (!inputQueue.TryDequeue(out var nextImage))
+
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 if (jobs.TryDequeue(out var currentJob))
@@ -100,15 +98,11 @@ namespace imageStacker.Core
                     continue;
                 }
 
-                if (!inputQueue.TryDequeue(out var nextImage))
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
+
+                if (cancelled)
                 {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
-                    await Task.Yield();
-                    continue;
+                    break;
                 }
 
                 for (int ii = 0; ii < bufferQueue.Count; ii++)
@@ -154,27 +148,20 @@ namespace imageStacker.Core
 
             for (int i = 0; true; i++)
             {
-                if (!inputQueue.TryDequeue(out var nextImage))
-                {
-                    if (inputFinishedToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    await Task.Delay(100);
+                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
 
-                    continue;
+                if (cancelled)
+                {
+                    break;
                 }
 
-                while (outputQueue.Count > 32)
-                {
-                    await Task.Yield();
-                    await Task.Delay(100);
-                }
+                await outputQueue.WaitForBufferSpace(32);
 
                 await Task.WhenAll(baseImages.Select(data => Task.Run(() =>
                   {
+                      int index = i;
                       data.filter.Process(data.image, nextImage);
-                      outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(i, data.filter.Name)));
+                      outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(index, data.filter.Name)));
                   })));
                 /* baseImages
                        .ForEach(data =>
