@@ -22,7 +22,7 @@ namespace imageStacker.Core.Test.Unit.Readers
                 new ReaderOptions
                 {
                     FolderName = base.tempPath,
-                    Filter = "*.jpg"
+                    Filter = "*.png"
                 });
     }
 }

@@ -17,12 +17,12 @@ namespace imageStacker.Core.Test.Unit.Readers
 
         protected override IImageReader<MutableByteImage> Reader =>
             new ImageMutliFileReader<MutableByteImage>(
-                new Logger(TextWriter.Null), 
-                factory, 
+                new Logger(TextWriter.Null),
+                factory,
                 new ReaderOptions
                 {
                     FolderName = base.tempPath,
-                    Filter = "*.jpg"
+                    Filter = "*.png"
                 });
     }
 }

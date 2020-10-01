@@ -62,7 +62,7 @@ namespace imageStacker.Core.Test.Unit.Readers
             for (int i = 0; i < ImagesCount; i++)
             {
                 var img = this.imageProvider.PreparePrefilledImage(i);
-                this.factory.ToImage(img).Save(Path.Combine(tempPath, $"{i:d5}.jpg"));
+                this.factory.ToImage(img).Save(Path.Combine(tempPath, $"{i:d5}.png"));
             }
 
         }
