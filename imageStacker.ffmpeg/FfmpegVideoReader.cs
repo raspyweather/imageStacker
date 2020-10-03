@@ -48,7 +48,7 @@ namespace imageStacker.ffmpeg
                 _logger.WriteLine("Input from ffmpeg currently only supports rgb24-convertable input", Verbosity.Warning);
 
                 var chunksQueue = new ConcurrentQueue<byte[]>();
-                using var memoryStream = new ChunkedMemoryStream(frameSizeInBytes, chunksQueue, _logger); // new MemoryStream(frameSizeInBytes);
+                using var memoryStream = new ChunkedMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
                 StreamPipeSink sink = new StreamPipeSink(memoryStream);
                 var args = FFMpegArguments
                     .FromInputFiles(_arguments.InputFiles)
