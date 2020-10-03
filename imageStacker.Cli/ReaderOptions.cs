@@ -1,7 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace imageStacker.Cli
 {
