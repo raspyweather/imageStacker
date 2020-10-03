@@ -5,7 +5,7 @@
         public string Name { get; }
 
         public bool IsSupported { get; }
-        
+
         public void Process(T currentIamge, T nextPicture);
     }
 }

@@ -9,7 +9,7 @@ namespace imageStacker.ffmpeg
         public readonly int BytesperChunk;
         public byte[] CurrentChunk;
         private readonly ConcurrentQueue<byte[]> _chunks;
-        private int producedImages = 0;
+
         public ChunkedMemoryStream(int bytesPerChunk, ConcurrentQueue<byte[]> chunks)
         {
             this.BytesperChunk = bytesPerChunk;

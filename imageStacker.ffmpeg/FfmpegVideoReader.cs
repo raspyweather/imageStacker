@@ -33,7 +33,7 @@ namespace imageStacker.ffmpeg
             {
                 FFMpegOptions.Configure(new FFMpegOptions
                 {
-                    RootDirectory = @"C:\Users\armbe\Downloads\ffmpeg-4.3.1-full_build\bin"
+                    RootDirectory = _arguments.PathToFfmpeg
                 });
 
                 var result = await FFProbe.AnalyseAsync(_arguments.InputFiles.First()).ConfigureAwait(false);
@@ -101,6 +101,7 @@ namespace imageStacker.ffmpeg
     {
         public double Framerate { get; set; }
 
+        public string PathToFfmpeg { get; set; }
         public string[] InputFiles { get; set; }
     }
 }
