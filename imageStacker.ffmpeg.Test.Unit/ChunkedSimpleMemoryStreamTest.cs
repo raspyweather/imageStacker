@@ -6,7 +6,7 @@ using Xunit;
 
 namespace imageStacker.ffmpeg.Test.Unit
 {
-    public class ChunkedMemoryStreamTest
+    public class ChunkedSimpleMemoryStreamTest
     {
         [Fact]
         public void EmitsImageOnOverflow()
@@ -63,10 +63,10 @@ namespace imageStacker.ffmpeg.Test.Unit
             Assert.True(chunkedStream.HasUnwrittenData);
         }
 
-        private (ChunkedMemoryStream chunkedStream, byte[] bytes, ConcurrentQueue<byte[]> concurrentQueue) Prepare(int bytesData, int bytesPerChunk)
+        private (ChunkedSimpleMemoryStream chunkedStream, byte[] bytes, ConcurrentQueue<byte[]> concurrentQueue) Prepare(int bytesData, int bytesPerChunk)
         {
             var concurrentQueue = new ConcurrentQueue<byte[]>();
-            var chunkedStream = new ChunkedMemoryStream(bytesPerChunk, concurrentQueue);
+            var chunkedStream = new ChunkedSimpleMemoryStream(bytesPerChunk, concurrentQueue);
 
             var bytes = new byte[bytesData];
             var random = new Random();
