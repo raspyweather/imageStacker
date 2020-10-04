@@ -33,7 +33,7 @@ namespace imageStacker.ffmpeg
             {
                 FFMpegOptions.Configure(new FFMpegOptions
                 {
-                    RootDirectory = _arguments.PathToFfmpeg
+                    //       RootDirectory = _arguments.PathToFfmpeg
                 });
 
                 var result = await FFProbe.AnalyseAsync(_arguments.InputFiles.First()).ConfigureAwait(false);
@@ -48,10 +48,12 @@ namespace imageStacker.ffmpeg
                 _logger.WriteLine("Input from ffmpeg currently only supports rgb24-convertable input", Verbosity.Warning);
 
                 var chunksQueue = new ConcurrentQueue<byte[]>();
-                using var memoryStream = new ChunkedMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
+                using var memoryStream = new ChunkedSimpleMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
                 StreamPipeSink sink = new StreamPipeSink(memoryStream);
                 var args = FFMpegArguments
                     .FromInputFiles(_arguments.InputFiles)
+                    .DisableChannel(FFMpegCore.Enums.Channel.Audio)
+                    .WithArgument(new FfmpegFpsArgument(_arguments.Framerate))
                     .UsingMultithreading(true)
                     .ForceFormat("rawvideo")
                     .ForcePixelFormat("bgr24")
@@ -67,41 +69,40 @@ namespace imageStacker.ffmpeg
 
                 //    await Task.WhenAny(produceTask, consumeTask).ConfigureAwait(false);
             }
+            catch (System.ComponentModel.Win32Exception e)
+            {
+                _logger.WriteLine("Couldn't find ffmpeg", Verbosity.Error);
+            }
             catch (Exception e)
             {
-
-            }
-
-            async Task ParseInputStream(ConcurrentQueue<MutableByteImage> queue, ConcurrentQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedMemoryStream memoryStream)
-            {
-                int count = 0;
-
-                while (true)
-                //while ((memoryStream.HasUnwrittenData || chunksQueue.Count > 0) && !parsingFinished.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var foo = await chunksQueue.TryDequeueOrWait(parsingFinished);
-                        if (foo.cancelled) { break; }
-                        _logger.NotifyFillstate(++count, "ParsedImages");
-                        _logger.NotifyFillstate(chunksQueue.Count, "ChunkedQueue");
-                        queue.Enqueue(_factory.FromBytes(width, height, foo.item));
-
-                    }
-                    catch (Exception e) { _logger.LogException(e); }
-
-                    await queue.WaitForBufferSpace(24);
-                }
-                Console.WriteLine(memoryStream.HasUnwrittenData);
+                _logger.LogException(e);
             }
         }
-    }
 
-    public class FfmpegVideoReaderArguments
-    {
-        public double Framerate { get; set; }
+        private async Task ParseInputStream(ConcurrentQueue<MutableByteImage> queue, ConcurrentQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedSimpleMemoryStream memoryStream)
+        {
+            int count = 0;
 
-        public string PathToFfmpeg { get; set; }
-        public string[] InputFiles { get; set; }
+            while (true)
+            {
+                try
+                {
+                    var (cancelled, item) = await chunksQueue.TryDequeueOrWait(parsingFinished);
+                    if (cancelled) { break; }
+                    _logger.NotifyFillstate(++count, "ParsedImages");
+                    _logger.NotifyFillstate(chunksQueue.Count, "ChunkedQueue");
+                    queue.Enqueue(_factory.FromBytes(width, height, item));
+
+                }
+                catch (Exception e) { _logger.LogException(e); }
+
+                await queue.WaitForBufferSpace(24);
+            }
+            if (memoryStream.HasUnwrittenData)
+            {
+                _logger.WriteLine("Unwritten data exists after finishing parsings." +
+                    " This indicates a severe issue with frame splitting", Verbosity.Warning);
+            }
+        }
     }
 }

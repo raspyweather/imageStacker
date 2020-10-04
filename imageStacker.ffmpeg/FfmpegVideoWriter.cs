@@ -8,7 +8,6 @@ namespace imageStacker.ffmpeg
 {
     public class FfmpegVideoWriter : IImageWriter<MutableByteImage>
     {
-
         public FfmpegVideoWriter(FfmpegVideoWriterArguments arguments, Logger logger)
         {
             _arguments = arguments;
