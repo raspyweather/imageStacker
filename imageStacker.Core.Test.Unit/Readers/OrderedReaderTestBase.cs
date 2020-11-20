@@ -25,7 +25,7 @@ namespace imageStacker.Core.Test.Unit.Readers
             var t = Task.Run(() => reader.Produce(queue));
             int i = 0;
             MutableByteImage data;
-            while ((data = await queue.DequeueOrNull()) != null)
+            while ((data = await queue.DequeueOrDefault()) != null)
             {
                 data.Data[0].Should().Be((byte)(i));
                 i++;

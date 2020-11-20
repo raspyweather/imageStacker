@@ -1,5 +1,4 @@
-﻿using imageStacker.Core.Extensions;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
@@ -28,7 +27,8 @@ namespace imageStacker.Core
 
             var tasks = new ConcurrentQueue<Task>();
 
-            while (!inputQueue.IsCompleted)
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
                 logger.NotifyFillstate(tasks.Count, "ProcessBuffer");
                 while (tasks.Count >= 8)
@@ -36,8 +36,6 @@ namespace imageStacker.Core
                     await Task.WhenAny(tasks);
                     tasks.Filter(task => !task.IsCompleted);
                 }
-
-                var nextImage = await inputQueue.Dequeue();
 
                 if (jobs.TryDequeue(out var currentJob))
                 {
@@ -85,10 +83,11 @@ namespace imageStacker.Core
         {
             var bufferQueue = new Queue<(IFilter<T> filter, T image, Task task, int appliedImages, int startIndex)>();
             int maxSize = filters.Count * StackCount;
-            for (int i = 0; !inputQueue.IsCompleted; i++)
-            {
-                var nextImage = await inputQueue.Dequeue();
 
+            int i = 0;
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            {
                 for (int ii = 0; ii < bufferQueue.Count; ii++)
                 {
                     var data = bufferQueue.Dequeue();
@@ -108,6 +107,8 @@ namespace imageStacker.Core
                 {
                     bufferQueue.Enqueue((filter, image: nextImage, Task.CompletedTask, 0, i));
                 });
+
+                i++;
             }
 
             while (0 <= bufferQueue.Count)
@@ -130,12 +131,12 @@ namespace imageStacker.Core
         protected override async Task ProcessingThread(List<IFilter<T>> filters)
         {
             T firstData = await GetFirstImage();
-            var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstData), index)).ToList();
+            var baseImages = filters.Select((filter) => (filter, image: factory.Clone(firstData), index: 0)).ToList();
 
-            for (int i = 0; !inputQueue.IsCompleted; i++)
+            int i = 0;
+            T nextImage;
+            while((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
-                var nextImage = await inputQueue.Dequeue();
-
                 var tasks = baseImages.Select(data => Task.Run(() =>
                 {
                     data.index = i;
@@ -149,6 +150,8 @@ namespace imageStacker.Core
                 {
                     await outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(data.index, data.filter.Name)));
                 }
+
+                i++;
             }
             outputQueue.CompleteAdding();
         }

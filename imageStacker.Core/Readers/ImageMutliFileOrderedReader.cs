@@ -33,7 +33,6 @@ namespace imageStacker.Core.Readers
             this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
-        private const int processQueueLength = 8;
         private const int publishQueueLength = 8;
         private const int readQueueLength = 24;
 
@@ -61,7 +60,7 @@ namespace imageStacker.Core.Readers
         private async Task DecodeImage(IBoundedQueue<(T, int)> queue)
         {
             (MemoryStream, int) data;
-            while ((data = await dataToParse.DequeueOrNull()).Item1 != null)
+            while ((data = await dataToParse.DequeueOrDefault()).Item1 != null)
             {
                 try
                 {
@@ -81,10 +80,11 @@ namespace imageStacker.Core.Readers
                     bmp.UnlockBits(bmp1Data);
                     bmp.Dispose();
                     data.Item1.Dispose();
-                    logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
+                    logger.NotifyFillstate(dataToParse.Count, "ReadBuffer");
                 }
                 catch (Exception e) { logger.LogException(e); continue; }
             }
+            queue.CompleteAdding();
         }
 
         private async Task Publish(IBoundedQueue<T> queue)
@@ -92,21 +92,19 @@ namespace imageStacker.Core.Readers
             int nextImageIndex = 0;
 
             var reassembleDict = new ConcurrentDictionary<int, T>();
-            while (!dataToPublish.IsCompleted)
+
+            (T, int) result;
+            while ((result = await dataToPublish.DequeueOrDefault()).Item1 != null)
             {
-                logger.NotifyFillstate(dataToPublish.Count, "PublishBuffer");
+                logger.NotifyFillstate(dataToPublish.Count, "ParsedBuffer");
                 logger.NotifyFillstate(reassembleDict.Count, "ReassembleBuffer");
 
-                if (reassembleDict.TryRemove(nextImageIndex, out var image))
+                reassembleDict[result.Item2] = result.Item1;
+
+                while (reassembleDict.TryRemove(nextImageIndex, out var image))
                 {
                     nextImageIndex++;
                     await queue.Enqueue(image);
-                    continue;
-                }
-                else
-                {
-                    var result = await dataToPublish.Dequeue();
-                    reassembleDict[result.Item2] = result.Item1;
                 }
             }
             while (reassembleDict.TryRemove(nextImageIndex, out var image))
@@ -114,7 +112,7 @@ namespace imageStacker.Core.Readers
                 nextImageIndex++;
                 await queue.Enqueue(image);
             }
-
+            logger.NotifyFillstate(reassembleDict.Count, "ReassembleBuffer");
             queue.CompleteAdding();
         }
 

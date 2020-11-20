@@ -62,7 +62,7 @@ namespace imageStacker.Core.Readers
         private async Task DecodeImage(IBoundedQueue<T> queue)
         {
             MemoryStream data;
-            while ((data = await dataToParse.DequeueOrNull()) != null)
+            while ((data = await dataToParse.DequeueOrDefault()) != null)
             {
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;

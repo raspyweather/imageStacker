@@ -20,11 +20,10 @@ namespace imageStacker.Core
 
             var tasks = new List<Task>();
 
-            while (!inputQueue.IsCompleted)
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
                 await tasks.WaitForFinishingTasks(tasksCount);
-
-                var nextImage = await inputQueue.Dequeue();
 
                 baseImages.ForEach(data =>
                 {

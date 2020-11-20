@@ -17,10 +17,9 @@ namespace imageStacker.Core
             T firstMutableImage = await GetFirstImage();
             var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstMutableImage), index)).ToList();
 
-            while (!inputQueue.IsCompleted)
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
-                var nextImage = await inputQueue.Dequeue();
-
                 foreach (var item in baseImages)
                 {
                     foreach (var filter in filters)

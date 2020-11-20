@@ -40,7 +40,7 @@ namespace imageStacker.Core.Test.Unit.Readers
             var t = Task.Run(() => reader.Produce(queue));
             int i = 0;
 
-            while ((await queue.DequeueOrNull()) != null)
+            while ((await queue.DequeueOrDefault()) != null)
             {
                 i++;
             }

@@ -31,13 +31,14 @@ namespace imageStacker.Core
             try
             {
                 var tasks = new Queue<Task>();
-                while (!outputQueue.IsCompleted)
+                (T image, ISaveInfo saveInfo) imageInfo;
+                while ((imageInfo = await outputQueue.DequeueOrDefault()).image != null)
                 {
+                    // don't use imageInfo directly here because it will be overwritten on the next iteration and change the value inside the lambda
+                    var localImageInfo = imageInfo;
                     logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
 
-                    var imageInfo = await outputQueue.Dequeue();
-
-                    tasks.Enqueue(Task.Run(() => writer.WriteFile(imageInfo.image, imageInfo.saveInfo)));
+                    tasks.Enqueue(Task.Run(() => writer.WriteFile(localImageInfo.image, localImageInfo.saveInfo)));
 
                     if (tasks.Count > 16)
                         await tasks.Dequeue();
@@ -55,11 +56,9 @@ namespace imageStacker.Core
 
         protected async Task<T> GetFirstImage()
         {
-            while (!inputQueue.IsCompleted)
-            {
-                var firstData = await inputQueue.Dequeue();
-                return firstData;
-            }
+            var image = await inputQueue.DequeueOrDefault();
+            if (image != null)
+                return image;
 
             throw new InvalidOperationException("No Image could be found");
         }
