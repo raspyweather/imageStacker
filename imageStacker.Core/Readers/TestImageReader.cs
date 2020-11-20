@@ -36,6 +36,7 @@ namespace imageStacker.Core.Readers
                 ((i % 2 == 0) ? data1 : data2).CopyTo(data, 0);
                 await queue.Enqueue(factory.FromBytes(width, height, data, format));
             }
+            queue.CompleteAdding();
         }
     }
 }

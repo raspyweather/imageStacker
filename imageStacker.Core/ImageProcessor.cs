@@ -30,6 +30,7 @@ namespace imageStacker.Core
             T nextImage;
             while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
+                var localNextImage = nextImage;
                 logger.NotifyFillstate(tasks.Count, "ProcessBuffer");
                 while (tasks.Count >= 8)
                 {
@@ -43,7 +44,7 @@ namespace imageStacker.Core
                     {
                         foreach (var (filter, image) in currentJob)
                         {
-                            filter.Process(image, nextImage);
+                            filter.Process(image, localNextImage);
                         }
                     });
                     jobs.Enqueue(currentJob);
