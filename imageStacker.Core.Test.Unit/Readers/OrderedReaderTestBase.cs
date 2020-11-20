@@ -24,13 +24,11 @@ namespace imageStacker.Core.Test.Unit.Readers
             var reader = Reader;
             var t = Task.Run(() => reader.Produce(queue));
             int i = 0;
-            while (!t.IsCompleted || !queue.IsEmpty)
+            MutableByteImage data;
+            while ((data = await queue.DequeueOrDefault()) != null)
             {
-                while (queue.TryDequeue(out var data))
-                {
-                    data.Data[0].Should().Be((byte)(i));
-                    i++;
-                }
+                data.Data[0].Should().Be((byte)(i));
+                i++;
                 await Task.Yield();
             }
 

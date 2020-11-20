@@ -20,16 +20,10 @@ namespace imageStacker.Core
 
             var tasks = new List<Task>();
 
-            while (true)
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
                 await tasks.WaitForFinishingTasks(tasksCount);
-
-                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
-
-                if (cancelled)
-                {
-                    break;
-                }
 
                 baseImages.ForEach(data =>
                 {
@@ -40,7 +34,12 @@ namespace imageStacker.Core
             }
 
             await Task.WhenAll(tasks);
-            baseImages.ForEach(data => outputQueue.Append((data.image, new SaveInfo(null, data.filter.Name))));
+
+            foreach (var data in baseImages)
+            {
+                await outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+            }
+            outputQueue.CompleteAdding();
         }
     }
 }

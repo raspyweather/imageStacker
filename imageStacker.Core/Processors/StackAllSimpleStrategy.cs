@@ -17,15 +17,9 @@ namespace imageStacker.Core
             T firstMutableImage = await GetFirstImage();
             var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstMutableImage), index)).ToList();
 
-            while (true)
+            T nextImage;
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
-                var (cancelled, nextImage) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
-
-                if (cancelled)
-                {
-                    break;
-                }
-
                 foreach (var item in baseImages)
                 {
                     foreach (var filter in filters)
@@ -34,7 +28,12 @@ namespace imageStacker.Core
                     }
                 }
             }
-            baseImages.ForEach(data => outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name))));
+
+            foreach (var data in baseImages)
+            {
+                await outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+            }
+            outputQueue.CompleteAdding();
         }
 
     }

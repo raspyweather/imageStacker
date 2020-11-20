@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.Test.Unit.ByteImage;
 using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
@@ -26,7 +26,7 @@ namespace imageStacker.Core.Test.Unit.Readers
 
         protected IImageProvider<T> imageProvider;
 
-        protected ConcurrentQueue<T> queue = new ConcurrentQueue<T>();
+        protected IBoundedQueue<T> queue = BoundedQueueFactory.Get<T>(16);
 
         protected abstract IImageReader<T> Reader { get; }
 
@@ -39,13 +39,10 @@ namespace imageStacker.Core.Test.Unit.Readers
             var reader = Reader;
             var t = Task.Run(() => reader.Produce(queue));
             int i = 0;
-            while (!t.IsCompleted || !queue.IsEmpty)
+
+            while ((await queue.DequeueOrDefault()) != null)
             {
-                while (queue.TryDequeue(out _))
-                {
-                    i++;
-                }
-                await Task.Yield();
+                i++;
             }
 
             i.Should().Be(ImagesCount);

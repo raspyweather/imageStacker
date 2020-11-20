@@ -1,10 +1,10 @@
-﻿using System.Collections.Concurrent;
+﻿using imageStacker.Core.Abstraction;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core
 {
     public interface IImageReader<T> where T : IProcessableImage
     {
-        public Task Produce(ConcurrentQueue<T> queue);
+        public Task Produce(IBoundedQueue<T> queue);
     }
 }
