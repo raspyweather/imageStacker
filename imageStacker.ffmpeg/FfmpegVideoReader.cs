@@ -1,6 +1,7 @@
 ﻿using FFMpegCore;
 using FFMpegCore.Pipes;
 using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Extensions;
 using System;
@@ -27,7 +28,7 @@ namespace imageStacker.ffmpeg
             _factory = factory;
         }
 
-        public async Task Produce(ConcurrentQueue<MutableByteImage> queue)
+        public async Task Produce(IBoundedQueue<MutableByteImage> queue)
         {
             try
             {
@@ -79,7 +80,7 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        private async Task ParseInputStream(ConcurrentQueue<MutableByteImage> queue, ConcurrentQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedSimpleMemoryStream memoryStream)
+        private async Task ParseInputStream(IBoundedQueue<MutableByteImage> queue, ConcurrentQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedSimpleMemoryStream memoryStream)
         {
             int count = 0;
 
@@ -91,12 +92,9 @@ namespace imageStacker.ffmpeg
                     if (cancelled) { break; }
                     _logger.NotifyFillstate(++count, "ParsedImages");
                     _logger.NotifyFillstate(chunksQueue.Count, "ChunkedQueue");
-                    queue.Enqueue(_factory.FromBytes(width, height, item));
-
+                    await queue.Enqueue(_factory.FromBytes(width, height, item));
                 }
                 catch (Exception e) { _logger.LogException(e); }
-
-                await queue.WaitForBufferSpace(24);
             }
             if (memoryStream.HasUnwrittenData)
             {

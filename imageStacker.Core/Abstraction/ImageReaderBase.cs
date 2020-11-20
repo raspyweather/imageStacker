@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using imageStacker.Core.Abstraction;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core
@@ -13,7 +13,7 @@ namespace imageStacker.Core
             this.factory = factory;
         }
 
-        public abstract Task Produce(ConcurrentQueue<T> queue);
+        public abstract Task Produce(IBoundedQueue<T> queue);
     }
 
 }

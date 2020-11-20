@@ -36,7 +36,7 @@ namespace imageStacker.Core.Readers
 
         private readonly Queue<string> filenames;
 
-        public async override Task Produce(ConcurrentQueue<T> queue)
+        public async override Task Produce(IBoundedQueue<T> queue)
         {
             foreach (var filename in filenames)
             {
@@ -54,13 +54,13 @@ namespace imageStacker.Core.Readers
                     byte[] bmp1Bytes = new byte[length];
                     Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
                     var image = factory.FromBytes(width, height, bmp1Bytes);
-                    queue.Enqueue(image);
+                    await queue.Enqueue(image);
                     bmp1.UnlockBits(bmp1Data);
                     bmp1.Dispose();
                 }
                 catch (Exception e) { Console.WriteLine(e); }
-                await queue.WaitForBufferSpace(16);
             }
+            queue.CompleteAdding();
         }
     }
 }

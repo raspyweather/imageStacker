@@ -1,9 +1,7 @@
-﻿using imageStacker.Core.Extensions;
+﻿using imageStacker.Core.Abstraction;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core
@@ -13,18 +11,14 @@ namespace imageStacker.Core
         public ThreadProcessingStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         { }
 
-        protected readonly ConcurrentQueue<T> inputQueue = new ConcurrentQueue<T>();
-        protected readonly ConcurrentQueue<(T image, ISaveInfo saveInfo)> outputQueue = new ConcurrentQueue<(T image, ISaveInfo saveInfo)>();
-        protected readonly CancellationTokenSource
-            inputFinishedToken = new CancellationTokenSource(),
-            outputFinishedToken = new CancellationTokenSource();
+        protected readonly IBoundedQueue<T> inputQueue = BoundedQueueFactory.Get<T>(16);
+        protected readonly IBoundedQueue<(T image, ISaveInfo saveInfo)> outputQueue = BoundedQueueFactory.Get<(T image, ISaveInfo saveInfo)>(8);
 
         protected async Task ReadingThread(IImageReader<T> reader)
         {
             try
             {
                 await reader.Produce(inputQueue);
-                inputFinishedToken.Cancel();
             }
             catch (Exception e)
             {
@@ -36,23 +30,17 @@ namespace imageStacker.Core
         {
             try
             {
-                var tasks = new List<Task>();
-                while (true)
+                var tasks = new Queue<Task>();
+                while (!outputQueue.IsCompleted)
                 {
                     logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
 
-                    var (cancelled, imageInfo) = await outputQueue.TryDequeueOrWait(outputFinishedToken);
+                    var imageInfo = await outputQueue.Dequeue();
 
-                    if (cancelled)
-                    {
-                        break;
-                    }
+                    tasks.Enqueue(Task.Run(() => writer.WriteFile(imageInfo.image, imageInfo.saveInfo)));
 
-                    tasks.Add(Task.Run(() => writer.Writefile(imageInfo.image, imageInfo.saveInfo)));
-
-                    await tasks.WaitForFinishingTasks(128);
-
-                    tasks = tasks.Where(x => !x.IsCompleted).ToList();
+                    if (tasks.Count > 16)
+                        await tasks.Dequeue();
                 }
                 await Task.WhenAll(tasks);
                 logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
@@ -67,15 +55,9 @@ namespace imageStacker.Core
 
         protected async Task<T> GetFirstImage()
         {
-            while (true)
+            while (!inputQueue.IsCompleted)
             {
-                var (cancelled, firstData) = await inputQueue.TryDequeueOrWait(inputFinishedToken);
-
-                if (cancelled)
-                {
-                    break;
-                }
-
+                var firstData = await inputQueue.Dequeue();
                 return firstData;
             }
 
@@ -88,24 +70,11 @@ namespace imageStacker.Core
         {
             try
             {
-                var readThread = Task.Run(() => ReadingThread(reader)).ContinueWith(_ => inputFinishedToken.Cancel());
-                var processThread = Task.Run(() => ProcessingThread(filters).ContinueWith(_ => outputFinishedToken.Cancel()));
+                var readThread = Task.Run(() => ReadingThread(reader));
+                var processThread = Task.Run(() => ProcessingThread(filters));
                 var writeThread = Task.Run(() => WritingThread(writer));
 
-                var tasks = new List<Task> { readThread, processThread, writeThread };
-                await tasks.WaitForFinishingTasks(3);
-                tasks = tasks.Where(x => !x.IsCompleted).ToList();
-
-                while (tasks.Count > 3)
-                {
-                    await Task.WhenAny(tasks);
-                }
-
-                //  await Task.WhenAll(readThread, processThread, writeThread);
-
-                await readThread;
-                await processThread;
-                await writeThread;
+                await Task.WhenAll(readThread, processThread, writeThread);
             }
             catch (Exception e)
             {

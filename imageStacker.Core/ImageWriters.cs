@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace imageStacker.Core
 {
@@ -27,7 +28,7 @@ namespace imageStacker.Core
 
     public interface IImageWriter<T> where T : IProcessableImage
     {
-        public void Writefile(T image, ISaveInfo info);
+        public Task WriteFile(T image, ISaveInfo info);
     }
 
     public abstract class ImageWriter<T> : IImageWriter<T> where T : IProcessableImage
@@ -39,7 +40,7 @@ namespace imageStacker.Core
             this.logger = logger;
             this.factory = factory;
         }
-        public abstract void Writefile(T image, ISaveInfo info);
+        public abstract Task WriteFile(T image, ISaveInfo info);
     }
 
     public class ImageFileWriter<T> : IImageWriter<T> where T : IProcessableImage
@@ -54,7 +55,7 @@ namespace imageStacker.Core
             Factory = factory;
         }
 
-        public void Writefile(T image, ISaveInfo info)
+        public Task WriteFile(T image, ISaveInfo info)
         {
             string path = Path.Combine(OutputFolder,
                 string.Join('-',
@@ -62,7 +63,11 @@ namespace imageStacker.Core
                     info.Filtername,
                     info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".jpg");
             File.Delete(path);
-            Factory.ToImage(image).Save(path, ImageFormat.Jpeg);
+            using (System.Drawing.Image image1 = Factory.ToImage(image))
+            {
+                image1.Save(path, ImageFormat.Jpeg);
+            }
+            return Task.CompletedTask;
         }
     }
 
@@ -83,10 +88,11 @@ namespace imageStacker.Core
             outputStream?.Close();
         }
 
-        public override void Writefile(T image, ISaveInfo info)
+        public override Task WriteFile(T image, ISaveInfo info)
         {
             var imageAsBytes = factory.ToBytes(image);
             outputStream.Write(imageAsBytes, 0, imageAsBytes.Length);
+            return Task.CompletedTask;
         }
 
         ~ImageStreamWriter()
@@ -101,8 +107,9 @@ namespace imageStacker.Core
          : base(logger, factory)
         {
         }
-        public override void Writefile(T image, ISaveInfo info)
+        public override Task WriteFile(T image, ISaveInfo info)
         {
+            return Task.CompletedTask;
         }
     }
 }

@@ -43,14 +43,7 @@ namespace imageStacker.Core
         }
         public void NotifyFillstate(int count, string name)
         {
-            if (!fillStates.ContainsKey(name))
-            {
-                fillStates.TryAdd(name, count);
-            }
-            else
-            {
-                fillStates[name] = count;
-            }
+            fillStates[name] = count;
         }
 
         public void WriteLine(string text, Verbosity verbosity, bool newLine = true)

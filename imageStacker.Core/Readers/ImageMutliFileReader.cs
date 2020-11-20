@@ -40,9 +40,7 @@ namespace imageStacker.Core.Readers
 
         private readonly Queue<string> filenames;
 
-        private readonly CancellationTokenSource readingFinished = new CancellationTokenSource();
-
-        private readonly ConcurrentQueue<MemoryStream> dataToParse = new ConcurrentQueue<MemoryStream>();
+        private readonly IBoundedQueue<MemoryStream> dataToParse = BoundedQueueFactory.Get<MemoryStream>(readQueueLength);
 
         private async Task ReadFromDisk()
         {
@@ -53,23 +51,19 @@ namespace imageStacker.Core.Readers
                 {
                     logger.NotifyFillstate(dataToParse.Count, "ReadBuffer");
                     logger.NotifyFillstate(i, "FilesRead");
-                    dataToParse.Enqueue(new MemoryStream(File.ReadAllBytes(filename), false));
+                    await dataToParse.Enqueue(new MemoryStream(File.ReadAllBytes(filename), false));
                     i++;
                 }
                 catch (Exception e) { Console.WriteLine(e); }
-
-                await dataToParse.WaitForBufferSpace(readQueueLength);
             }
-            readingFinished.Cancel();
+            dataToParse.CompleteAdding();
         }
 
-        private async Task DecodeImage(ConcurrentQueue<T> queue)
+        private async Task DecodeImage(IBoundedQueue<T> queue)
         {
-            while (!readingFinished.Token.IsCancellationRequested || !dataToParse.IsEmpty)
+            MemoryStream data;
+            while ((data = await dataToParse.DequeueOrNull()) != null)
             {
-                var (cancelled, data) = await dataToParse.TryDequeueOrWait(readingFinished);
-                if (cancelled) { break; }
-
                 var bmp = new Bitmap(data);
                 var width = bmp.Width;
                 var height = bmp.Height;
@@ -81,27 +75,25 @@ namespace imageStacker.Core.Readers
                 byte[] bmp1Bytes = new byte[length];
                 Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
 
-                queue.Enqueue(factory.FromBytes(width, height, bmp1Bytes));
+                await queue.Enqueue(factory.FromBytes(width, height, bmp1Bytes));
 
                 bmp.UnlockBits(bmp1Data);
                 bmp.Dispose();
                 data.Dispose();
                 logger.NotifyFillstate(dataToParse.Count, "ParseBuffer");
-
-                await queue.WaitForBufferSpace(processQueueLength);
             }
         }
 
-        public override async Task Produce(ConcurrentQueue<T> queue)
+        public override async Task Produce(IBoundedQueue<T> queue)
         {
             var readingTask = Task.Run(() => ReadFromDisk());
-            var decodingTasks = Enumerable.Range(0, 6).Select(x => Task.Run(() => DecodeImage(queue)));
+            var decodingTasks = Task.WhenAll(Enumerable.Range(0, 6).Select(x => Task.Run(() => DecodeImage(queue)))).ContinueWith(t => queue.CompleteAdding());
 
-            await Task.WhenAll(Task.WhenAll(decodingTasks), readingTask);
+            await Task.WhenAll(decodingTasks, readingTask);
 
-            if (decodingTasks.Any(x => x.IsFaulted) || readingTask.IsFaulted)
+            if (decodingTasks.IsFaulted || readingTask.IsFaulted)
             {
-                throw decodingTasks.FirstOrDefault(x => x.Exception != null)?.Exception
+                throw decodingTasks.Exception
                       ?? readingTask.Exception
                       ?? new Exception("unkown stuff happened");
             }

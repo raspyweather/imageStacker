@@ -1,4 +1,5 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
+using System;
 using System.Collections.Concurrent;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -23,7 +24,7 @@ namespace imageStacker.Core
             this.InputStream = inputStream;
         }
 
-        public async override Task Produce(ConcurrentQueue<T> queue)
+        public async override Task Produce(IBoundedQueue<T> queue)
         {
             var bytesToRead = Width * Height * Image.GetPixelFormatSize(Format);
             while (this.InputStream.CanRead)
@@ -37,11 +38,11 @@ namespace imageStacker.Core
                         Format,
                         Marshal.UnsafeAddrOfPinnedArrayElement(this.InputStream.ReadBytes(bytesToRead), 0));
 
-                    queue.Enqueue(factory.FromImage(bm));
+                    await queue.Enqueue(factory.FromImage(bm));
                 }
                 catch (Exception e) { logger.LogException(e); }
-                while (queue.Count > 100) await Task.Delay(10);
             }
+            queue.CompleteAdding();
         }
     }
 }

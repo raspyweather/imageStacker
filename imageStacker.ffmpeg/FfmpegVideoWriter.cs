@@ -20,7 +20,7 @@ namespace imageStacker.ffmpeg
 
         private readonly FfmpegVideoWriterArguments _arguments;
 
-        public async Task Writefile(MutableByteImage image, ISaveInfo info)
+        public async Task WriteFile(MutableByteImage image, ISaveInfo info)
         {
             var inputPipe = new FFMpegCore.Pipes.StreamPipeSource(inputStream);
             var args = FFMpegCore.FFMpegArguments
