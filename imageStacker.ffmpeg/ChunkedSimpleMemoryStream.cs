@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using imageStacker.Core.Abstraction;
+using System;
 using System.IO;
 
 namespace imageStacker.ffmpeg
@@ -8,9 +8,9 @@ namespace imageStacker.ffmpeg
     {
         public readonly int BytesperChunk;
         public byte[] CurrentChunk;
-        private readonly ConcurrentQueue<byte[]> _chunks;
+        private readonly IBoundedQueue<byte[]> _chunks;
 
-        public ChunkedSimpleMemoryStream(int bytesPerChunk, ConcurrentQueue<byte[]> chunks)
+        public ChunkedSimpleMemoryStream(int bytesPerChunk, IBoundedQueue<byte[]> chunks)
         {
             this.BytesperChunk = bytesPerChunk;
             this.CurrentChunk = new byte[bytesPerChunk];

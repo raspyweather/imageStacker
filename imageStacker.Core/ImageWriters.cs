@@ -29,6 +29,8 @@ namespace imageStacker.Core
     public interface IImageWriter<T> where T : IProcessableImage
     {
         public Task WriteFile(T image, ISaveInfo info);
+
+        public Task WaitForCompletion();
     }
 
     public abstract class ImageWriter<T> : IImageWriter<T> where T : IProcessableImage
@@ -40,6 +42,9 @@ namespace imageStacker.Core
             this.logger = logger;
             this.factory = factory;
         }
+
+        public Task WaitForCompletion() => Task.CompletedTask;
+
         public abstract Task WriteFile(T image, ISaveInfo info);
     }
 
@@ -61,14 +66,16 @@ namespace imageStacker.Core
                 string.Join('-',
                     Filename,
                     info.Filtername,
-                    info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".jpg");
+                    info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".png");
             File.Delete(path);
             using (System.Drawing.Image image1 = Factory.ToImage(image))
             {
-                image1.Save(path, ImageFormat.Jpeg);
+                image1.Save(path, ImageFormat.Png);
             }
             return Task.CompletedTask;
         }
+        
+        public Task WaitForCompletion() => Task.CompletedTask;
     }
 
     /// <summary>
@@ -92,6 +99,7 @@ namespace imageStacker.Core
         {
             var imageAsBytes = factory.ToBytes(image);
             outputStream.Write(imageAsBytes, 0, imageAsBytes.Length);
+            image = default(T);
             return Task.CompletedTask;
         }
 

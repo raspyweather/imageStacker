@@ -3,9 +3,7 @@ using FFMpegCore.Pipes;
 using imageStacker.Core;
 using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
-using imageStacker.Core.Extensions;
 using System;
-using System.Collections.Concurrent;
 using System.Drawing;
 using System.Linq;
 using System.Threading;
@@ -18,8 +16,6 @@ namespace imageStacker.ffmpeg
         private readonly FfmpegVideoReaderArguments _arguments;
         private readonly Logger _logger;
         private readonly IMutableImageFactory<MutableByteImage> _factory;
-        private readonly CancellationTokenSource parsingFinished = new CancellationTokenSource();
-        private bool isFinished = false;
 
         public FfmpegVideoReader(FfmpegVideoReaderArguments arguments, IMutableImageFactory<MutableByteImage> factory, Logger logger)
         {
@@ -34,7 +30,7 @@ namespace imageStacker.ffmpeg
             {
                 FFMpegOptions.Configure(new FFMpegOptions
                 {
-                    //       RootDirectory = _arguments.PathToFfmpeg
+                    RootDirectory = _arguments.PathToFfmpeg
                 });
 
                 var result = await FFProbe.AnalyseAsync(_arguments.InputFiles.First()).ConfigureAwait(false);
@@ -48,13 +44,12 @@ namespace imageStacker.ffmpeg
 
                 _logger.WriteLine("Input from ffmpeg currently only supports rgb24-convertable input", Verbosity.Warning);
 
-                var chunksQueue = new ConcurrentQueue<byte[]>();
+                var chunksQueue = BoundedQueueFactory.Get<byte[]>(4);
                 using var memoryStream = new ChunkedSimpleMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
                 StreamPipeSink sink = new StreamPipeSink(memoryStream);
                 var args = FFMpegArguments
                     .FromInputFiles(_arguments.InputFiles)
                     .DisableChannel(FFMpegCore.Enums.Channel.Audio)
-                    .WithArgument(new FfmpegFpsArgument(_arguments.Framerate))
                     .UsingMultithreading(true)
                     .ForceFormat("rawvideo")
                     .ForcePixelFormat("bgr24")
@@ -63,12 +58,17 @@ namespace imageStacker.ffmpeg
                         percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "InputVideoParsing"),
                         TimeSpan.FromSeconds(1));
 
-                var produceTask = args.ProcessAsynchronously(true).ContinueWith((_) => parsingFinished.Cancel());
-                var consumeTask = ParseInputStream(queue, chunksQueue, width, height, frameSizeInBytes, memoryStream);
+                var produceTask = args.ProcessAsynchronously(true).ContinueWith((_) =>
+                {
+                    chunksQueue.CompleteAdding();
+                    queue.CompleteAdding();
+                });
+                var consumeTask = ParseInputStream(queue, chunksQueue, width, height, frameSizeInBytes, memoryStream)
+                    .ContinueWith((_) => _logger.WriteLine("finished reading", Verbosity.Info));
 
                 await Task.WhenAll(produceTask, consumeTask);
 
-                //    await Task.WhenAny(produceTask, consumeTask).ConfigureAwait(false);
+                _logger.WriteLine("finished reading", Verbosity.Info);
             }
             catch (System.ComponentModel.Win32Exception e)
             {
@@ -80,7 +80,7 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        private async Task ParseInputStream(IBoundedQueue<MutableByteImage> queue, ConcurrentQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedSimpleMemoryStream memoryStream)
+        private async Task ParseInputStream(IBoundedQueue<MutableByteImage> queue, IBoundedQueue<byte[]> chunksQueue, int width, int height, int frameSizeInBytes, ChunkedSimpleMemoryStream memoryStream)
         {
             int count = 0;
 
@@ -88,8 +88,9 @@ namespace imageStacker.ffmpeg
             {
                 try
                 {
-                    var (cancelled, item) = await chunksQueue.TryDequeueOrWait(parsingFinished);
-                    if (cancelled) { break; }
+                    var item = await chunksQueue.DequeueOrDefault();
+                    if (item == default) { break; }
+
                     _logger.NotifyFillstate(++count, "ParsedImages");
                     _logger.NotifyFillstate(chunksQueue.Count, "ChunkedQueue");
                     await queue.Enqueue(_factory.FromBytes(width, height, item));

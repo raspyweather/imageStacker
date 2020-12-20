@@ -1,7 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
-using imageStacker.Core.Extensions;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;

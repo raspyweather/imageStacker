@@ -71,6 +71,24 @@ namespace imageStacker.Core
         }
     }
 
+    public class CopyStrategy<T> : ThreadProcessingStrategy<T>, IImageProcessingStrategy<T> where T : IProcessableImage
+    {
+        public CopyStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
+        { }
+
+        protected async override Task ProcessingThread(List<IFilter<T>> filter)
+        {
+            int idx = 0;
+            T image;
+            while ((image = await inputQueue.DequeueOrDefault()) != null)
+            {
+                await outputQueue.Enqueue((image, new SaveInfo(idx++, "foo")));
+            }
+            outputQueue.CompleteAdding();
+            logger.WriteLine("finished copying", Verbosity.Info);
+        }
+    }
+
     public class StackContinousStrategy<T> : ThreadProcessingStrategy<T>, IImageProcessingStrategy<T> where T : IProcessableImage
     {
         private readonly int StackCount;
@@ -112,7 +130,7 @@ namespace imageStacker.Core
                 i++;
             }
 
-            while (0 <= bufferQueue.Count)
+            while (0 < bufferQueue.Count)
             {
                 var (filter, image, t, appliedImages, startindex) = bufferQueue.Dequeue();
                 await t;
@@ -136,7 +154,7 @@ namespace imageStacker.Core
 
             int i = 0;
             T nextImage;
-            while((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
             {
                 var tasks = baseImages.Select(data => Task.Run(() =>
                 {

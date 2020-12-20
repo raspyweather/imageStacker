@@ -15,7 +15,6 @@ namespace imageStacker.Core
 
     public abstract class MutableImage : IProcessableImage
     {
-
         internal MutableImage(int Width, int Height, PixelFormat format)
         {
             this.Width = Width;
