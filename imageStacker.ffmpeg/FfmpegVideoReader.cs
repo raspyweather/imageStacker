@@ -33,7 +33,7 @@ namespace imageStacker.ffmpeg
                     RootDirectory = _arguments.PathToFfmpeg
                 });
 
-                var result = await FFProbe.AnalyseAsync(_arguments.InputFiles.First()).ConfigureAwait(false);
+                var result = await FFProbe.AnalyseAsync(_arguments.InputFile).ConfigureAwait(false);
 
                 var width = result.PrimaryVideoStream.Width;
                 var height = result.PrimaryVideoStream.Height;
@@ -48,12 +48,11 @@ namespace imageStacker.ffmpeg
                 using var memoryStream = new ChunkedSimpleMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
                 StreamPipeSink sink = new StreamPipeSink(memoryStream);
                 var args = FFMpegArguments
-                    .FromInputFiles(_arguments.InputFiles)
-                    .DisableChannel(FFMpegCore.Enums.Channel.Audio)
-                    .UsingMultithreading(true)
-                    .ForceFormat("rawvideo")
-                    .ForcePixelFormat("bgr24")
-                    .OutputToPipe(sink)
+                    .FromFileInput(_arguments.InputFile).OutputToPipe(sink, options =>
+                     options.DisableChannel(FFMpegCore.Enums.Channel.Audio)
+                     .UsingMultithreading(true)
+                     .ForceFormat("rawvideo")
+                     .ForcePixelFormat("bgr24"))
                     .NotifyOnProgress(
                         percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "InputVideoParsing"),
                         TimeSpan.FromSeconds(1));

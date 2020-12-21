@@ -76,22 +76,17 @@ namespace imageStacker.Cli
 
     [Verb("stackImage")]
     public class StackAllOptions : CommonOptions
-    {
-
-    }
+    { }
 
     [Verb("info", HelpText = "[Dev Functionality] can be used to retrieve dimensions of pictures")]
     public class InfoOptions : CommonOptions
-    {
-
-    }
+    { }
 
     [Verb("stackProgressive")]
     public class StackProgressiveOptions : CommonOptions
     {
         public int StartCount { get; set; }
         public int EndCount { get; set; }
-
     }
 
     [Verb("stackContinuous")]

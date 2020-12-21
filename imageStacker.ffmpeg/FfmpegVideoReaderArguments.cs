@@ -4,6 +4,6 @@
     {
         public string PathToFfmpeg { get; set; }
 
-        public string[] InputFiles { get; set; }
+        public string InputFile { get; set; }
     }
 }
