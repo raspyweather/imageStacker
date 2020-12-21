@@ -36,10 +36,9 @@ namespace imageStacker.ffmpeg
             {
                 RootDirectory = _arguments.PathToFfmpeg
             });
-            var args = FFMpegCore.FFMpegArguments
-                   .FromPipe(source)
-                   .WithFramerate(_arguments.Framerate)
-                   .OutputToFile(_arguments.OutputFile)
+            var args = FFMpegArguments
+                   .FromPipeInput(source)
+                   .OutputToFile(_arguments.OutputFile, false, options => options.WithFramerate(_arguments.Framerate))
                    .NotifyOnProgress(
                        percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
                        TimeSpan.FromSeconds(1));

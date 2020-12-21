@@ -1,7 +1,5 @@
+using imageStacker.Core.Abstraction;
 using System;
-using System.Collections.Concurrent;
-using System.IO.IsolatedStorage;
-using System.Linq;
 using Xunit;
 
 namespace imageStacker.ffmpeg.Test.Unit
@@ -15,7 +13,7 @@ namespace imageStacker.ffmpeg.Test.Unit
 
             chunkedStream.Write(bytes, 0, bytes.Length);
 
-            Assert.Single(concurrentQueue);
+            Assert.Equal(1, concurrentQueue.Count);
         }
 
         [Fact]
@@ -29,7 +27,7 @@ namespace imageStacker.ffmpeg.Test.Unit
         }
 
         [Fact]
-        public void IsDi6rtyAfterIncompleteImageWrite()
+        public void IsDirtyAfterIncompleteImageWrite()
         {
             var (chunkedStream, bytes, _) = Prepare(48, 64);
 
@@ -63,9 +61,9 @@ namespace imageStacker.ffmpeg.Test.Unit
             Assert.True(chunkedStream.HasUnwrittenData);
         }
 
-        private (ChunkedSimpleMemoryStream chunkedStream, byte[] bytes, ConcurrentQueue<byte[]> concurrentQueue) Prepare(int bytesData, int bytesPerChunk)
+        private (ChunkedSimpleMemoryStream chunkedStream, byte[] bytes, IBoundedQueue<byte[]> concurrentQueue) Prepare(int bytesData, int bytesPerChunk)
         {
-            var concurrentQueue = new ConcurrentQueue<byte[]>();
+            var concurrentQueue = BoundedQueueFactory.Get<byte[]>(32);
             var chunkedStream = new ChunkedSimpleMemoryStream(bytesPerChunk, concurrentQueue);
 
             var bytes = new byte[bytesData];

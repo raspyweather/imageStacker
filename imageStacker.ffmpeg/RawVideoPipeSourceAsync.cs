@@ -27,7 +27,7 @@ namespace imageStacker.ffmpeg
 
         public RawVideoPipeSourceAsync(IAsyncEnumerable<IVideoFrame> framesEnumerator) : this(framesEnumerator.GetAsyncEnumerator()) { }
 
-        public string GetFormat()
+        public string GetStreamArguments()
         {
             if (!_formatInitialized)
             {
@@ -49,7 +49,7 @@ namespace imageStacker.ffmpeg
             return $"-f rawvideo -r {FrameRate} -pix_fmt {StreamFormat} -s {Width}x{Height}";
         }
 
-        public async Task CopyAsync(System.IO.Stream outputStream, CancellationToken cancellationToken)
+        public async Task WriteAsync(System.IO.Stream outputStream, CancellationToken cancellationToken)
         {
             if (_framesEnumerator.Current != null)
             {
@@ -127,7 +127,7 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        public string GetFormat()
+        public string GetStreamArguments()
         {
             if (!_formatInitialized)
             {
@@ -149,7 +149,7 @@ namespace imageStacker.ffmpeg
             return $"-f rawvideo -r {FrameRate} -pix_fmt {StreamFormat} -s {Width}x{Height}";
         }
 
-        public async Task CopyAsync(Stream outputStream, CancellationToken cancellationToken)
+        public async Task WriteAsync(Stream outputStream, CancellationToken cancellationToken)
         {
             int i = 0;
             if (FramesEnumerator.Current != null)
