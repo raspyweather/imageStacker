@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
 using imageStacker.Core.Readers;
@@ -91,7 +92,6 @@ namespace imageStacker.Cli
                 .WithParsed<TestOptions>(info =>
              {
                  info.UseOutputPipe = false;
-                 info.OutputFile = ".";
                  info.OutputFolder = ".";
 
                  logger = new Logger(Console.Out);
@@ -113,8 +113,7 @@ namespace imageStacker.Cli
                  RunBenchmark(info, logger, new MutableByteImageFactory(logger)).Wait();
 
                  Process.GetCurrentProcess().Close();
-             })
-                .WithNotParsed(x =>
+             }).WithNotParsed(x =>
                     logger?.WriteLine(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), Verbosity.Error));
 
             if (throwMe)
@@ -129,6 +128,7 @@ namespace imageStacker.Cli
                 logger?.WriteLine("IO undefined", Verbosity.Error);
                 return;
             }
+
             if (processingStrategy == null)
             {
                 logger?.WriteLine("Not processing strategy defined", Verbosity.Error);
@@ -190,14 +190,13 @@ namespace imageStacker.Cli
                 return (new ImageStreamWriter<MutableByteImage>(logger, factory, Console.OpenStandardOutput()), false);
             }
 
-            if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder) &&
-                !string.IsNullOrWhiteSpace(commonOptions.OutputFile))
+            if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
             {
-                return (new ImageFileWriter<MutableByteImage>(commonOptions.OutputFile, commonOptions.OutputFolder, factory), false);
+                return (new ImageFileWriter<MutableByteImage>(commonOptions.OutputFilePrefix, commonOptions.OutputFolder, factory), false);
             }
 
             logger?.WriteLine("No Output Mode defined", Verbosity.Error);
-            logger?.WriteLine("Consider specifying --UseOutputPipe or --OutputFolder and --OutputFile", Verbosity.Error);
+            logger?.WriteLine("Consider specifying --UseOutputPipe or --OutputFolder", Verbosity.Error);
             logger?.WriteLine("", Verbosity.Error);
             return (null, true);
         }
@@ -226,7 +225,7 @@ namespace imageStacker.Cli
             }
             if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
             {
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { Files = commonOptions.InputFiles.ToArray() }), false);
+                return (new ImageMutliFileReader<MutableByteImage>(logger, factory, new ReaderOptions { Files = commonOptions.InputFiles.ToArray() }), false);
             }
             if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
             {
@@ -236,7 +235,7 @@ namespace imageStacker.Cli
                     logger?.WriteLine($"InputFolder does not exist {commonOptions.InputFolder}", Verbosity.Warning);
                 }
 
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { FolderName = commonOptions.InputFolder, Filter = commonOptions.InputFilter }), false);
+                return (new ImageMutliFileReader<MutableByteImage>(logger, factory, new ReaderOptions { FolderName = commonOptions.InputFolder, Filter = commonOptions.InputFilter }), false);
             }
 
             logger?.WriteLine("No Input Mode defined", Verbosity.Error);

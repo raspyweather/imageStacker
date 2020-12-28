@@ -1,4 +1,5 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
+using System;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
@@ -26,13 +27,6 @@ namespace imageStacker.Core
 
     }
 
-    public interface IImageWriter<T> where T : IProcessableImage
-    {
-        public Task WriteFile(T image, ISaveInfo info);
-
-        public Task WaitForCompletion();
-    }
-
     public abstract class ImageWriter<T> : IImageWriter<T> where T : IProcessableImage
     {
         protected readonly ILogger logger;
@@ -50,12 +44,12 @@ namespace imageStacker.Core
 
     public class ImageFileWriter<T> : IImageWriter<T> where T : IProcessableImage
     {
-        private readonly string Filename, OutputFolder;
+        private readonly string OutputFilePrefix, OutputFolder;
         private readonly IMutableImageFactory<T> Factory;
 
-        public ImageFileWriter(string filename, string outputFolder, IMutableImageFactory<T> factory)
+        public ImageFileWriter(string outputFilePrefix, string outputFolder, IMutableImageFactory<T> factory)
         {
-            Filename = filename;
+            OutputFilePrefix = outputFilePrefix;
             OutputFolder = outputFolder;
             Factory = factory;
         }
@@ -64,7 +58,7 @@ namespace imageStacker.Core
         {
             string path = Path.Combine(OutputFolder,
                 string.Join('-',
-                    Filename,
+                    OutputFilePrefix,
                     info.Filtername,
                     info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".png");
             File.Delete(path);

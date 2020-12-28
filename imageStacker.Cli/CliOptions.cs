@@ -33,32 +33,54 @@ namespace imageStacker.Cli
 
         [Option("Height")]
         public int Height { get; set; } = 4 * 1080;
-
     }
 
     public abstract class CommonOptions : ICommonOptions
     {
-        [Option("outputToPipe", Required = false)]
-        public virtual bool UseOutputPipe { get; set; }
-        [Option("outputFolder", Required = false)]
-        public virtual string OutputFolder { get; set; }
+        #region InputFromPipe
         [Option("inputFromPipe", Required = false)]
         public virtual bool UseInputPipe { get; set; }
 
         [Option("inputSize", HelpText = "Format: 1920x1080", Required = false)]
         public virtual string InputSize { get; set; }
+        #endregion
 
+        #region InputFromFiles
         [Option("inputFiles", Required = false)]
         public virtual IEnumerable<string> InputFiles { get; set; }
+        #endregion
 
-        [Option("outputFile", HelpText = "Name Prefix of the output file written to the disk", Required = false)]
-        public virtual string OutputFile { get; set; }
-
+        #region InputFromFolder
         [Option("inputFolder", Required = false)]
         public virtual string InputFolder { get; set; }
 
         [Option("inputFilter", HelpText = "Filter for enumerating files of specified inputFolder, e.g. *.jpg")]
         public virtual string InputFilter { get; set; }
+        #endregion
+
+        #region OutputToImages
+        [Option("outputFolder", Required = false)]
+        public virtual string OutputFolder { get; set; }
+
+        [Option("outputFilePrefix", HelpText = "Name Prefix of the output file written to the disk", Required = false)]
+        public virtual string OutputFilePrefix { get; set; }
+        #endregion
+
+        #region OutputToPipe
+        [Option("outputToPipe", Required = false)]
+        public virtual bool UseOutputPipe { get; set; }
+        #endregion
+
+        #region OutputToVideo
+        [Option("outputFile")]
+        public virtual string OuputVideoFile { get; set; }
+
+        [Option("outputVideoOptions", HelpText = "ffmpeg Options")]
+        public virtual string OutputVideoOptions { get; set; }
+
+        [Option("outputPreset", HelpText = "Presets for output encoding e.g. FHD, 4K")]
+        public virtual string OutputPreset { get; set; }
+        #endregion
 
         [Option("filters", Required = false, Separator = ',', HelpText = "List of Filters with respective parameters; Example: 'MaxFilter Name=Max,AttackDecayFilter Attack=1.0 Decay=0.2 '")]
         public virtual IEnumerable<string> Filters { get; set; }
@@ -74,12 +96,8 @@ namespace imageStacker.Cli
         }
     }
 
-    [Verb("stackImage")]
+    [Verb("stackAll")]
     public class StackAllOptions : CommonOptions
-    { }
-
-    [Verb("info", HelpText = "[Dev Functionality] can be used to retrieve dimensions of pictures")]
-    public class InfoOptions : CommonOptions
     { }
 
     [Verb("stackProgressive")]
@@ -92,7 +110,11 @@ namespace imageStacker.Cli
     [Verb("stackContinuous")]
     public class StackContinuousOptions : CommonOptions
     {
-        [Option("StackCount")]
+        [Option("stackCount")]
         public int Count { get; set; }
     }
+
+    [Verb("info", HelpText = "[Dev Functionality] can be used to retrieve dimensions of pictures")]
+    public class InfoOptions : CommonOptions
+    { }
 }
