@@ -1,4 +1,5 @@
-﻿using System;
+﻿using imageStacker.Core.Writers;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
