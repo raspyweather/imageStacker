@@ -1,23 +1,26 @@
 ﻿using FFMpegCore;
+using FFMpegCore.Pipes;
 using imageStacker.Core;
 using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace imageStacker.ffmpeg
 {
-    public class FfmpegVideoWriterPiped : IImageWriter<MutableByteImage>
+    public class FfmpegVideoWriter : IImageWriter<MutableByteImage>
     {
-        public FfmpegVideoWriterPiped(FfmpegVideoWriterArguments arguments, IBoundedQueue<MutableByteImage> queue, Logger logger)
+        public FfmpegVideoWriter(FfmpegVideoWriterArguments arguments, IBoundedQueue<MutableByteImage> queue, Logger logger)
         {
             _arguments = arguments;
             _logger = logger;
             boundedQueue = queue;
-            this.source = new RawMutableByteFramePipeSourceAsync(queue, logger);
+            this.source = new RawVideoPipeSource(new BoundedQueueEnumerator(queue));
         }
 
-        private readonly RawMutableByteFramePipeSourceAsync source;
+        private readonly RawVideoPipeSource source;
 
         private readonly Logger _logger;
 
@@ -45,6 +48,41 @@ namespace imageStacker.ffmpeg
 
             await args.ProcessAsynchronously(true);
             _logger.WriteLine("finished writing", Verbosity.Info);
+        }
+    }
+
+    public class BoundedQueueEnumerator : IEnumerator<IVideoFrame>
+    {
+        public BoundedQueueEnumerator(IBoundedQueue<MutableByteImage> queue)
+        {
+            this.queue = queue;
+        }
+
+        private IBoundedQueue<MutableByteImage> queue;
+        public IVideoFrame Current { get; private set; }
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+        }
+
+        public bool MoveNext()
+        {
+            var item = this.queue.DequeueOrDefault();
+            item.Wait();
+            var frame = item.Result;
+            if (frame == default)
+            {
+                return false;
+            }
+            this.Current = new FfmpegVideoFrame(frame);
+            return true;
+        }
+
+        public void Reset()
+        {
+            throw new NotImplementedException();
         }
     }
 
