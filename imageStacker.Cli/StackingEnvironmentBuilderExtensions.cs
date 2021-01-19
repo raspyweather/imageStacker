@@ -44,7 +44,7 @@ namespace imageStacker.Cli
         {
             environment.Filters = new List<IFilter<MutableByteImage>>();
 
-            if (optionArgs.Count() == 0)
+            if (optionArgs == null || !optionArgs.Any())
             {
                 environment.ThrowMe = true;
                 return environment;
