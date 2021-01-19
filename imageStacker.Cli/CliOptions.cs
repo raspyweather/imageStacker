@@ -1,8 +1,37 @@
 ﻿using CommandLine;
+using imageStacker.Core;
+using imageStacker.Core.Abstraction;
+using imageStacker.Core.ByteImage;
 using System.Collections.Generic;
 
 namespace imageStacker.Cli
 {
+    public interface IStackingEnvironment
+    {
+        public IMutableImageFactory<MutableByteImage> Factory { get; set; }
+        public List<IFilter<MutableByteImage>> Filters { get; set; }
+        public IImageReader<MutableByteImage> InputMode { get; set; }
+        public IImageWriter<MutableByteImage> OutputMode { get; set; }
+        public ILogger Logger { get; set; }
+        public IImageProcessingStrategy<MutableByteImage> ProcessingStrategy { get; set; }
+        public bool ThrowMe { get; set; }
+
+        public bool IsOrderRelevant { get; set; }
+    }
+
+    public class StackingEnvironment : IStackingEnvironment
+    {
+        public IMutableImageFactory<MutableByteImage> Factory { get; set; }
+        public List<IFilter<MutableByteImage>> Filters { get; set; }
+        public IImageReader<MutableByteImage> InputMode { get; set; }
+        public IImageWriter<MutableByteImage> OutputMode { get; set; }
+        public ILogger Logger { get; set; }
+        public IImageProcessingStrategy<MutableByteImage> ProcessingStrategy { get; set; }
+        public bool ThrowMe { get; set; }
+        public bool IsOrderRelevant { get; set; }
+    }
+
+
     public interface ICommonOptions
     {
         bool UseOutputPipe { get; set; }
@@ -73,7 +102,7 @@ namespace imageStacker.Cli
 
         #region OutputToVideo
         [Option("outputFile")]
-        public virtual string OuputVideoFile { get; set; }
+        public virtual string OutputVideoFile { get; set; }
 
         [Option("outputVideoOptions", HelpText = "ffmpeg Options")]
         public virtual string OutputVideoOptions { get; set; }
