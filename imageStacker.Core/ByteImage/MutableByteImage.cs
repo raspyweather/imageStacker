@@ -12,11 +12,6 @@ namespace imageStacker.Core.ByteImage
 
         public byte[] Data { get; }
 
-        public int Brightness(int x, int y) =>
-            this.Data[x + y * Width] * this.Data[x + y * Width] +
-            this.Data[x + y * Width + 1] * this.Data[x + y * Width + 1] +
-            this.Data[x + y * Width + 2] * this.Data[x + y * Width + 2];
-
         public MutableByteImage Clone() => new MutableByteImage(
                 Width: Width,
                 Height: Height,
