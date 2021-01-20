@@ -50,9 +50,15 @@ namespace imageStacker.Cli
                 return environment;
             }
 
+            var filteredOptionArgs = string.Join(' ', optionArgs)
+                .Replace("--filters=", "")
+                .Replace("--filters", "")
+                .Split(" ", StringSplitOptions.RemoveEmptyEntries)
+                .SelectMany(x => x.Split(',')).ToArray();
+
             var parameterGroups = new List<List<string>>();
-            var previousList = new List<string> { optionArgs.First() };
-            foreach (var item in optionArgs.Skip(1))
+            var previousList = new List<string> { filteredOptionArgs.First() };
+            foreach (var item in filteredOptionArgs.Skip(1))
             {
                 if (item.Contains("="))
                 {
@@ -60,7 +66,7 @@ namespace imageStacker.Cli
                     continue;
                 }
                 parameterGroups.Add(previousList);
-                previousList = new List<string> { item };
+                previousList = new List<string> { item.Trim(',') };
             }
 
             parameterGroups.Add(previousList);
