@@ -17,7 +17,7 @@ namespace imageStacker.ffmpeg
             _arguments = arguments;
             _logger = logger;
             boundedQueue = queue;
-            this.source = new RawVideoPipeSource(new BoundedQueueEnumerator(queue));
+            this.source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
         }
 
         private readonly RawVideoPipeSource source;
@@ -40,8 +40,17 @@ namespace imageStacker.ffmpeg
                 RootDirectory = _arguments.PathToFfmpeg
             });
             var args = FFMpegArguments
-                   .FromPipeInput(source)
-                   .OutputToFile(_arguments.OutputFile, false, options => options.WithFramerate(_arguments.Framerate))
+                   .FromPipeInput(source, args =>
+                   {
+                       //args.UsingMultithreading(true);
+                   })
+                   .OutputToFile(_arguments.OutputFile, true, options => options.WithFramerate(_arguments.Framerate)
+                   .ForcePixelFormat("yuv420p")
+                   .WithVideoCodec("libx264")
+                   .WithConstantRateFactor(25)
+                   .UsingMultithreading(true)
+                   .UsingThreads(8)
+                   .WithCustomArgument("-profile:v baseline -level 3.0"))
                    .NotifyOnProgress(
                        percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
                        TimeSpan.FromSeconds(1));
@@ -51,9 +60,9 @@ namespace imageStacker.ffmpeg
         }
     }
 
-    public class BoundedQueueEnumerator : IEnumerator<IVideoFrame>
+    public class MutableByteImageBoundedQueueEnumerator : IEnumerator<IVideoFrame>
     {
-        public BoundedQueueEnumerator(IBoundedQueue<MutableByteImage> queue)
+        public MutableByteImageBoundedQueueEnumerator(IBoundedQueue<MutableByteImage> queue)
         {
             this.queue = queue;
         }
