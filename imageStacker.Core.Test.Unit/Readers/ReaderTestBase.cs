@@ -45,6 +45,7 @@ namespace imageStacker.Core.Test.Unit.Readers
                 i++;
             }
 
+            await t;
             i.Should().Be(ImagesCount);
         }
 
@@ -61,7 +62,6 @@ namespace imageStacker.Core.Test.Unit.Readers
                 var img = this.imageProvider.PreparePrefilledImage(i);
                 this.factory.ToImage(img).Save(Path.Combine(tempPath, $"{i:d5}.png"));
             }
-
         }
 
         public void Dispose()
