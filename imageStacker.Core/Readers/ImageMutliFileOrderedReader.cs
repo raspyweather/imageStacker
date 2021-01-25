@@ -64,7 +64,7 @@ namespace imageStacker.Core.Readers
             {
                 try
                 {
-                    var bmp = new Bitmap(data.Item1);
+                    using var bmp = new Bitmap(data.Item1);
                     var width = bmp.Width;
                     var height = bmp.Height;
                     var pixelFormat = bmp.PixelFormat;
@@ -78,7 +78,6 @@ namespace imageStacker.Core.Readers
                     await queue.Enqueue((factory.FromBytes(width, height, bmp1Bytes), data.Item2));
 
                     bmp.UnlockBits(bmp1Data);
-                    bmp.Dispose();
                     data.Item1.Dispose();
                     logger.NotifyFillstate(dataToParse.Count, "ReadBuffer");
                 }

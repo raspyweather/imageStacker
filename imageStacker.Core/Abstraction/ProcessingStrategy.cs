@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using imageStacker.Core.Abstraction;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core

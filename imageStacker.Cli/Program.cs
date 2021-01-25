@@ -1,16 +1,18 @@
 ﻿using CommandLine;
 using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
 using imageStacker.Core.Readers;
+using imageStacker.Core.Writers;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace imageStacker.Cli
@@ -22,32 +24,7 @@ namespace imageStacker.Cli
             Stopwatch st = new Stopwatch();
             st.Start();
 
-            IMutableImageFactory<MutableByteImage> factory = null;
-            List<IFilter<MutableByteImage>> filters = null;
-            IImageReader<MutableByteImage> inputMode = null;
-            IImageWriter<MutableByteImage> outputMode = null;
-            ILogger logger = null;
-
-            IImageProcessingStrategy<MutableByteImage> processingStrategy = null;
-            bool throwMe = false;
-
-            void setupCommons(CommonOptions info)
-            {
-                logger = CreateLogger(info);
-                bool throwMeHere = false;
-                (filters, throwMeHere) = ParseFilterParameters(info.Filters);
-                throwMe |= throwMeHere;
-
-                factory = new MutableByteImageFactory(logger);
-
-                logger?.WriteLine(info.ToString().Replace(",", Environment.NewLine), Verbosity.Info);
-
-                (inputMode, throwMeHere) = SetInput(info, factory, logger);
-                throwMe |= throwMeHere;
-
-                (outputMode, throwMeHere) = SetOutput(info, logger, factory);
-                throwMe |= throwMeHere;
-            }
+            var env = GetBasicEnvironment();
 
             var result = Parser.Default
                 .ParseArguments<InfoOptions,
@@ -62,194 +39,84 @@ namespace imageStacker.Cli
                 })
                 .WithParsed<StackAllOptions>(info =>
                 {
-                    setupCommons(info);
+                    env.ConfigureCommonEnvironment(info);
 
                     // todo switch between stackall and stackallmerge, if supported by filter
                     // processingStrategy = new StackAllStrategy();
                     // might be unsafe
 
-                    processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+                    env.ProcessingStrategy = new StackAllMergeStrategy<MutableByteImage>(env.Logger, env.Factory);
 
                 })
                 .WithParsed<StackProgressiveOptions>(info =>
                 {
-                    setupCommons(info);
-                    processingStrategy = new StackProgressiveStrategy<MutableByteImage>(logger, factory);
+                    env.ConfigureCommonEnvironment(info);
+                    env.ProcessingStrategy = new StackProgressiveStrategy<MutableByteImage>(env.Logger, env.Factory);
                 })
                 .WithParsed<StackContinuousOptions>(info =>
                 {
-                    setupCommons(info);
+                    env.ConfigureCommonEnvironment(info);
 
                     if (info.Count == 0)
                     {
-                        logger?.WriteLine("You have to define --stackCount for continuous stacking", Verbosity.Error);
-                        throwMe = true;
+                        env.Logger?.WriteLine("You have to define --stackCount for continuous stacking", Verbosity.Error);
+                        env.ThrowMe = true;
                     }
 
-                    processingStrategy = new StackContinousStrategy<MutableByteImage>(info.Count, logger, factory);
+                    env.ProcessingStrategy = new StackContinousStrategy<MutableByteImage>(info.Count, env.Logger, env.Factory);
                 })
                 .WithParsed<TestOptions>(info =>
-             {
-                 info.UseOutputPipe = false;
-                 info.OutputFile = ".";
-                 info.OutputFolder = ".";
+                {
+                    info.UseOutputPipe = false;
+                    info.OutputFolder = ".";
 
-                 logger = new Logger(Console.Out);
+                    env.Logger = new Logger(Console.Out);
 
-                 factory = new MutableByteImageFactory(logger);
+                    env.Factory = new MutableByteImageFactory(env.Logger);
 
-                 inputMode = new TestImageReader<MutableByteImage>
-                    (info.Count,
-                    info.Width,
-                    info.Height,
-                    PixelFormat.Format24bppRgb,
-                    logger,
-                    factory);
+                    env.InputMode = new TestImageReader<MutableByteImage>
+                        (info.Count,
+                        info.Width,
+                        info.Height,
+                        PixelFormat.Format24bppRgb,
+                        env.Logger,
+                        env.Factory);
 
-                 outputMode = new TestImageWriter<MutableByteImage>(logger, factory);
+                    env.OutputMode = new TestImageWriter<MutableByteImage>(env.Logger, env.Factory);
 
-                 processingStrategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+                    env.ProcessingStrategy = new StackAllSimpleStrategy<MutableByteImage>(env.Logger, env.Factory);
 
-                 RunBenchmark(info, logger, new MutableByteImageFactory(logger)).Wait();
+                    RunBenchmark(info, env.Logger, new MutableByteImageFactory(env.Logger)).Wait();
 
-                 Process.GetCurrentProcess().Close();
-             })
-                .WithNotParsed(x =>
-                    logger?.WriteLine(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), Verbosity.Error));
+                    Process.GetCurrentProcess().Close();
+                }).WithNotParsed(x =>
+                       env.Logger?.WriteLine(String.Join(Environment.NewLine, x.Select(y => y.ToString()).ToArray()), Verbosity.Error));
 
-            if (throwMe)
+            if (env.ThrowMe)
             {
-                logger?.WriteLine("Invalid Configuration, see issues above.", Verbosity.Error);
+                env.Logger?.WriteLine("Invalid Configuration, see issues above.", Verbosity.Error);
                 return;
             }
 
-            if (inputMode == null || outputMode == null)
+            if (env.InputMode == null || env.OutputMode == null)
             {
-                logger?.WriteLine($"Input: {inputMode}, Output:{outputMode}", Verbosity.Error);
-                logger?.WriteLine("IO undefined", Verbosity.Error);
+                env.Logger?.WriteLine($"Input: {env.InputMode}, Output:{env.OutputMode}", Verbosity.Error);
+                env.Logger?.WriteLine("IO undefined", Verbosity.Error);
                 return;
             }
-            if (processingStrategy == null)
+
+            if (env.ProcessingStrategy == null)
             {
-                logger?.WriteLine("Not processing strategy defined", Verbosity.Error);
+                env.Logger?.WriteLine("Not processing strategy defined", Verbosity.Error);
             }
 
-            logger?.WriteLine($"{inputMode} {outputMode} {processingStrategy}", Verbosity.Info);
+            env.Logger?.WriteLine($"{env.InputMode} {env.OutputMode} {env.ProcessingStrategy}", Verbosity.Info);
 
-            await processingStrategy.Process(inputMode, filters, outputMode);
+            await env.ProcessingStrategy.Process(env.InputMode, env.Filters, env.OutputMode);
             st.Stop();
-            logger?.WriteLine($"Processing took {st.ElapsedMilliseconds / 1000d}", Verbosity.Info);
+            env.Logger?.WriteLine($"Processing took {st.ElapsedMilliseconds / 1000d}", Verbosity.Info);
 
-            logger?.Dispose();
-        }
-
-        private static (List<IFilter<MutableByteImage>> filters, bool throwMe) ParseFilterParameters(IEnumerable<string> optionArgs)
-        {
-            if (optionArgs.Count() == 0)
-            {
-                return (new List<IFilter<MutableByteImage>>(), true);
-            }
-
-            var parameterGroups = new List<List<string>>();
-            var previousList = new List<string> { optionArgs.First() };
-            foreach (var item in optionArgs.Skip(1))
-            {
-                if (item.Contains("="))
-                {
-                    previousList.Add("--" + item.Trim(','));
-                    continue;
-                }
-                parameterGroups.Add(previousList);
-                previousList = new List<string> { item };
-            }
-
-            parameterGroups.Add(previousList);
-
-            var filters = new List<IFilter<MutableByteImage>>();
-            var factory = new MutableByteImageFilterFactory(true);
-
-            foreach (var group in parameterGroups)
-            {
-                var result = Parser.Default
-                        .ParseArguments<MaxFilterOptions,
-                                        MinFilterOptions,
-                                        AttackDecayFilterOptions>(group)
-                                        .WithParsed<MaxFilterOptions>(options => filters.Add(factory.CreateMaxFilter(options)))
-                                        .WithParsed<MinFilterOptions>(options => filters.Add(factory.CreateMinFilter(options)))
-                                        .WithParsed<AttackDecayFilterOptions>(options => filters.Add(factory.CreateAttackDecayFilter(options)))
-                                        .WithNotParsed(e => Console.Write(e.ToString()));
-            }
-
-            return (filters, false);
-        }
-
-        private static (IImageWriter<MutableByteImage>, bool throwMe) SetOutput(CommonOptions commonOptions, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
-        {
-            if (commonOptions.UseOutputPipe)
-            {
-                return (new ImageStreamWriter<MutableByteImage>(logger, factory, Console.OpenStandardOutput()), false);
-            }
-
-            if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder) &&
-                !string.IsNullOrWhiteSpace(commonOptions.OutputFile))
-            {
-                return (new ImageFileWriter<MutableByteImage>(commonOptions.OutputFile, commonOptions.OutputFolder, factory), false);
-            }
-
-            logger?.WriteLine("No Output Mode defined", Verbosity.Error);
-            logger?.WriteLine("Consider specifying --UseOutputPipe or --OutputFolder and --OutputFile", Verbosity.Error);
-            logger?.WriteLine("", Verbosity.Error);
-            return (null, true);
-        }
-
-        private static (IImageReader<MutableByteImage>, bool throwMe) SetInput(CommonOptions commonOptions, IMutableImageFactory<MutableByteImage> factory, ILogger logger)
-        {
-            if (commonOptions.UseInputPipe)
-            {
-                var inputSize = commonOptions.InputSize;
-                if (string.IsNullOrWhiteSpace(inputSize))
-                {
-                    throw new ArgumentException("Inputsize must be defined for inputpipes ");
-                }
-
-                var wh = Regex.Split(inputSize, "[^0-9]");
-                int.TryParse(wh[0], out int width);
-                int.TryParse(wh[1], out int height);
-
-                return (new ImageStreamReader<MutableByteImage>(
-                    logger,
-                    factory,
-                    Console.OpenStandardOutput(width * height * 3),
-                    width,
-                    height,
-                    PixelFormat.Format24bppRgb), false);
-            }
-            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
-            {
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { Files = commonOptions.InputFiles.ToArray() }), false);
-            }
-            if (!string.IsNullOrWhiteSpace(commonOptions.InputFolder))
-            {
-                logger?.WriteLine("Currently only *.jpg input supported", Verbosity.Warning);
-                if (!Directory.Exists(commonOptions.InputFolder))
-                {
-                    logger?.WriteLine($"InputFolder does not exist {commonOptions.InputFolder}", Verbosity.Warning);
-                }
-
-                return (new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions { FolderName = commonOptions.InputFolder, Filter = commonOptions.InputFilter }), false);
-            }
-
-            logger?.WriteLine("No Input Mode defined", Verbosity.Error);
-            return (null, true);
-        }
-
-        private static ILogger CreateLogger(CommonOptions commonOptions)
-        {
-            if (commonOptions.UseOutputPipe)
-            {
-                return new Logger(Console.Error);
-            }
-            return new Logger(Console.Out);
+            env.Logger?.Dispose();
         }
 
         private static async Task RunBenchmark(TestOptions options, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
@@ -328,5 +195,6 @@ namespace imageStacker.Cli
             }
             Console.Error.WriteLine("No Input Files could be found");
         }
+        private static IStackingEnvironment GetBasicEnvironment() => new StackingEnvironment();
     }
 }

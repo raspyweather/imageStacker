@@ -6,7 +6,7 @@ namespace imageStacker.Core.ByteImage.Filters
     /// <summary>
     /// Algorithm generously contributed by @patagonaa
     /// </summary>
-    public class AttackDecayVecFilter : IFilter<MutableByteImage>
+    public class AttackDecayVecFilter : IFilter<MutableByteImage>, IAttackDecayFilter<MutableByteImage>
     {
         public AttackDecayVecFilter(IAttackDecayOptions options)
         {

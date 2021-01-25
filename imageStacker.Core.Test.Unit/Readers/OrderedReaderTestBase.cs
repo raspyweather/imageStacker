@@ -33,6 +33,9 @@ namespace imageStacker.Core.Test.Unit.Readers
             }
 
             i.Should().Be(ImagesCount);
+
+            // for capturing exceptions
+            await t;
         }
     }
 }
