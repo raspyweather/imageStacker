@@ -1,8 +1,10 @@
 ﻿using CommandLine;
 using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Readers;
 using imageStacker.Core.Writers;
+using imageStacker.ffmpeg;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -96,6 +98,25 @@ namespace imageStacker.Cli
                 return env;
             }
 
+            if (!string.IsNullOrWhiteSpace(commonOptions.OutputVideoFile))
+            {
+                if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
+                {
+                    env.Logger?.WriteLine("OutputFolder Option set, but is being ignored when using Video as output", Verbosity.Warning, true);
+                }
+
+                env.OutputMode = new FfmpegVideoWriter(
+                    new FfmpegVideoWriterArguments
+                    {
+                        OutputFile = commonOptions.OutputVideoFile,
+                        CustomArgs = commonOptions.OutputVideoOptions
+                    },
+                    BoundedQueueFactory.Get<MutableByteImage>(32),
+                    env.Logger
+                    );
+                return env;
+            }
+
             if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
             {
                 env.OutputMode = new ImageFileWriter<MutableByteImage>(commonOptions.OutputFilePrefix, commonOptions.OutputFolder, env.Factory);
@@ -169,6 +190,7 @@ namespace imageStacker.Cli
                             Filter = commonOptions.InputFilter
                         });
                 }
+                return env;
             }
 
             env.Logger?.WriteLine("No Input Mode defined", Verbosity.Error);
