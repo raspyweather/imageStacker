@@ -26,7 +26,7 @@ namespace imageStacker.Core.Test.Unit.Readers
 
         protected IImageProvider<T> imageProvider;
 
-        protected IBoundedQueue<T> queue = BoundedQueueFactory.Get<T>(16);
+        protected IBoundedQueue<T> queue = BoundedQueueFactory.Get<T>(16,"testQ");
 
         protected abstract IImageReader<T> Reader { get; }
 
