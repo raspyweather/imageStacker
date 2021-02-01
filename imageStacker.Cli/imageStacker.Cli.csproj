@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\imageStacker.Core\imageStacker.Core.csproj" />
+    <ProjectReference Include="..\imageStacker.ffmpeg\imageStacker.ffmpeg.csproj" />
   </ItemGroup>
 
 </Project>
