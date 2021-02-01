@@ -1,14 +1,11 @@
 ﻿using imageStacker.Core.Abstraction;
-using imageStacker.Core.Extensions;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Core.Readers
@@ -18,7 +15,7 @@ namespace imageStacker.Core.Readers
         public ImageMutliFileReader(ILogger logger, IMutableImageFactory<T> factory, IImageReaderOptions options)
       : base(logger, factory)
         {
-            if (options?.Files != null && options.Files.Count() > 0)
+            if (options?.Files != null && options.Files.Any())
             {
                 this.filenames = new Queue<string>(options.Files);
             }
@@ -35,12 +32,11 @@ namespace imageStacker.Core.Readers
             this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
-        private const int processQueueLength = 16;
         private const int readQueueLength = 8;
 
         private readonly Queue<string> filenames;
 
-        private readonly IBoundedQueue<MemoryStream> dataToParse = BoundedQueueFactory.Get<MemoryStream>(readQueueLength);
+        private readonly IBoundedQueue<MemoryStream> dataToParse = BoundedQueueFactory.Get<MemoryStream>(readQueueLength,"In-ParQ");
 
         private async Task ReadFromDisk()
         {

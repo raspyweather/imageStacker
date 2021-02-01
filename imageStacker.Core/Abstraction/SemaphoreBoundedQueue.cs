@@ -7,17 +7,20 @@ namespace imageStacker.Core.Abstraction
 {
     public class SemaphoreBoundedQueue<T> : IBoundedQueue<T>
     {
-        private SemaphoreSlim _semaphoreAvailable;
-        private SemaphoreSlim _semaphoreOccupied;
+        private readonly SemaphoreSlim _semaphoreAvailable;
+        private readonly SemaphoreSlim _semaphoreOccupied;
         private readonly CancellationTokenSource _cts;
         private readonly ConcurrentQueue<T> _collection;
+        public int AddedCount { get; private set; } = 0;
+        public string Name { get; init; }
 
-        public SemaphoreBoundedQueue(int capacity)
+        public SemaphoreBoundedQueue(int capacity, string name)
         {
             _collection = new ConcurrentQueue<T>();
             _semaphoreAvailable = new SemaphoreSlim(capacity);
             _semaphoreOccupied = new SemaphoreSlim(0);
             _cts = new CancellationTokenSource();
+            this.Name = name;
         }
 
         public bool IsCompleted { get; private set; }
@@ -62,6 +65,7 @@ namespace imageStacker.Core.Abstraction
         public async Task Enqueue(T item)
         {
             await _semaphoreAvailable.WaitAsync();
+            AddedCount++;
             _collection.Enqueue(item);
             _semaphoreOccupied.Release();
         }

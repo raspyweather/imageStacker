@@ -1,4 +1,5 @@
-﻿using imageStacker.Core.Writers;
+﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Writers;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -64,10 +65,11 @@ namespace imageStacker.Core
                 previousJob = job;
             }
 
-            foreach (var data in previousJob)
+            foreach (var (filter, image) in previousJob)
             {
-                await outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+                await outputQueue.Enqueue((image, new SaveInfo(null, filter.Name)));
             }
+
             outputQueue.CompleteAdding();
         }
     }
@@ -166,29 +168,14 @@ namespace imageStacker.Core
 
                 var datas = await Task.WhenAll(tasks);
 
-                foreach (var data in datas)
+                foreach (var (filter, image, index) in datas)
                 {
-                    await outputQueue.Enqueue((factory.Clone(data.image), new SaveInfo(data.index, data.filter.Name)));
+                    await outputQueue.Enqueue((factory.Clone(image), new SaveInfo(index, filter.Name)));
                 }
 
                 i++;
             }
             outputQueue.CompleteAdding();
-        }
-    }
-
-    public static class ConcurrentQueueExtension
-    {
-        public static void Filter<T>(this ConcurrentQueue<T> me, Func<T, bool> filterFunc)
-        {
-            for (int i = 0; i < me.Count; i++)
-            {
-                me.TryDequeue(out T item);
-                if (filterFunc(item))
-                {
-                    me.Enqueue(item);
-                }
-            }
         }
     }
 }

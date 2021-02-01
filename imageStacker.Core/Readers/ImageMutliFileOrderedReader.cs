@@ -16,7 +16,7 @@ namespace imageStacker.Core.Readers
         public ImageMutliFileOrderedReader(ILogger logger, IMutableImageFactory<T> factory, IImageReaderOptions options)
             : base(logger, factory)
         {
-            if (options?.Files != null && options.Files.Count() > 0)
+            if (options?.Files != null && options.Files.Any())
             {
                 this.filenames = new Queue<string>(options.Files);
             }
@@ -30,16 +30,16 @@ namespace imageStacker.Core.Readers
                 }));
             }
 
-            this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
+            this.logger?.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
         }
 
         private const int publishQueueLength = 8;
-        private const int readQueueLength = 24;
+        private const int readQueueLength = 16;
 
         private readonly Queue<string> filenames;
 
-        private readonly IBoundedQueue<(MemoryStream, int)> dataToParse = BoundedQueueFactory.Get<(MemoryStream, int)>(readQueueLength);
-        private readonly IBoundedQueue<(T, int)> dataToPublish = BoundedQueueFactory.Get<(T, int)>(publishQueueLength);
+        private readonly IBoundedQueue<(MemoryStream, int)> dataToParse = BoundedQueueFactory.Get<(MemoryStream, int)>(readQueueLength,"In-ParQ");
+        private readonly IBoundedQueue<(T, int)> dataToPublish = BoundedQueueFactory.Get<(T, int)>(publishQueueLength,"In-PubQ");
         private async Task ReadFromDisk()
         {
             int i = 0;

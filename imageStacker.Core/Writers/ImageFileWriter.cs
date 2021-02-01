@@ -10,6 +10,7 @@ namespace imageStacker.Core.Writers
     {
         private readonly string OutputFilePrefix, OutputFolder;
         private readonly IMutableImageFactory<T> Factory;
+        private IBoundedQueue<(T image, ISaveInfo info)> queue;
 
         public ImageFileWriter(string outputFilePrefix, string outputFolder, IMutableImageFactory<T> factory)
         {
@@ -18,21 +19,29 @@ namespace imageStacker.Core.Writers
             Factory = factory;
         }
 
-        public Task WriteFile(T image, ISaveInfo info)
+        public async Task WaitForCompletion()
         {
-            string path = Path.Combine(OutputFolder,
+            while (true)
+            {
+                var (image, info) = await queue.DequeueOrDefault();
+                if (image == null || info == null)
+                {
+                    break;
+                }
+                string path = Path.Combine(OutputFolder,
                 string.Join('-',
                     OutputFilePrefix,
                     info.Filtername,
                     info.Index.HasValue ? info.Index.Value.ToString("d6") : string.Empty) + ".png");
-            File.Delete(path);
-            using (System.Drawing.Image image1 = Factory.ToImage(image))
-            {
+                File.Delete(path);
+                using System.Drawing.Image image1 = Factory.ToImage(image);
                 image1.Save(path, ImageFormat.Png);
             }
-            return Task.CompletedTask;
         }
-        
-        public Task WaitForCompletion() => Task.CompletedTask;
+
+        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue)
+        {
+            this.queue = queue;
+        }
     }
 }
