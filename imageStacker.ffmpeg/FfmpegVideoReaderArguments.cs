@@ -5,5 +5,7 @@
         public string PathToFfmpeg { get; set; }
 
         public string InputFile { get; set; }
+
+        public string CustomArgs { get; set; }
     }
 }
