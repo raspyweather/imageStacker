@@ -10,6 +10,7 @@ namespace imageStacker.Cli.Test.Unit
 {
     public class InputModeBuilderExtensionTest
     {
+
         [Fact]
         public void InputFileConfiguration_FileReader_IsCreated()
         {
@@ -98,6 +99,24 @@ namespace imageStacker.Cli.Test.Unit
 
             basicEnvironment.ThrowMe.Should().BeFalse();
             basicEnvironment.InputMode.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void InputVideoDecodeConfiguration_ValidConfig_InputReaderCreated()
+        {
+            var parameters = new StackAllOptions
+            {
+                InputVideoFile = "a.mp4",
+                InputVideoArguments = "-vf scale=-1:1080",
+            };
+
+            var basicEnvironment = new StackingEnvironment();
+
+            basicEnvironment.ConfigureInputMode(parameters);
+
+            basicEnvironment.ThrowMe.Should().BeFalse();
+            basicEnvironment.InputMode.Should().NotBeNull();
+            basicEnvironment.InputMode.Should().BeOfType<ffmpeg.FfmpegVideoReader>();
         }
     }
 }

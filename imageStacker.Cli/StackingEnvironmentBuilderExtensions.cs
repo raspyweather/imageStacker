@@ -26,6 +26,18 @@ namespace imageStacker.Cli
             return new Logger(Console.Out);
         }
 
+        public static IStackingEnvironment CheckConstraints(this IStackingEnvironment environment)
+        {
+            if (environment.Filters.Count > 1 && environment.OutputMode.GetType() == typeof(FfmpegVideoWriter))
+            {
+                environment.Logger?.WriteLine("Multiple filters and therefore video outputs are currently not supported.", Verbosity.Error, true);
+                environment.ThrowMe = true;
+                return environment;
+            }
+
+            return environment;
+        }
+
         public static IStackingEnvironment ConfigureCommonEnvironment(this IStackingEnvironment env, CommonOptions info)
         {
             env.Logger = CreateLogger(info);
@@ -109,11 +121,10 @@ namespace imageStacker.Cli
                     new FfmpegVideoWriterArguments
                     {
                         OutputFile = commonOptions.OutputVideoFile,
-                        CustomArgs = commonOptions.OutputVideoOptions
+                        CustomArgs = commonOptions.OutputVideoOptions,
+                        PathToFfmpeg = commonOptions.FfmpegLocation
                     },
-                    BoundedQueueFactory.Get<MutableByteImage>(32),
-                    env.Logger
-                    );
+                    env.Logger);
                 return env;
             }
 
@@ -132,6 +143,18 @@ namespace imageStacker.Cli
 
         public static IStackingEnvironment ConfigureInputMode(this IStackingEnvironment env, CommonOptions commonOptions)
         {
+            if (!string.IsNullOrWhiteSpace(commonOptions.InputVideoFile))
+            {
+                env.Logger?.WriteLine("Using Video Input - you might occur some bugs.", Verbosity.Warning);
+
+                env.InputMode = new FfmpegVideoReader(new FfmpegVideoReaderArguments
+                {
+                    InputFile = commonOptions.InputVideoFile,
+                    PathToFfmpeg = commonOptions.FfmpegLocation,
+                    CustomArgs = commonOptions.InputVideoArguments
+                }, env.Factory, env.Logger);
+                return env;
+            }
             if (commonOptions.UseInputPipe)
             {
                 env.Logger?.WriteLine("Currently only BGR24 input supported", Verbosity.Warning);
@@ -162,7 +185,7 @@ namespace imageStacker.Cli
 
                 return env;
             }
-            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
+            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Any())
             {
                 env.InputMode = new ImageMutliFileOrderedReader<MutableByteImage>(
                     env.Logger,
