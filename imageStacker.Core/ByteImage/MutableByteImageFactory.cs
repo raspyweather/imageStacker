@@ -1,4 +1,5 @@
-﻿using imageStacker.Core.ByteImage;
+﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.ByteImage;
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -69,7 +70,6 @@ namespace imageStacker.Core
             var pixelFormat = image.PixelFormat;
             var newPicture = new Bitmap(width, height, pixelFormat);
             var bmp1Data = newPicture.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, pixelFormat);
-            var length = bmp1Data.Stride * bmp1Data.Height;
             Marshal.Copy(image.Data, 0, bmp1Data.Scan0, image.Data.Length);
             newPicture.UnlockBits(bmp1Data);
             return newPicture;

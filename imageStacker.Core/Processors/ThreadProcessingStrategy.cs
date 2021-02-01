@@ -11,8 +11,8 @@ namespace imageStacker.Core
         public ThreadProcessingStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         { }
 
-        protected readonly IBoundedQueue<T> inputQueue = BoundedQueueFactory.Get<T>(16);
-        protected readonly IBoundedQueue<(T image, ISaveInfo saveInfo)> outputQueue = BoundedQueueFactory.Get<(T image, ISaveInfo saveInfo)>(8);
+        protected readonly IBoundedQueue<T> inputQueue = BoundedQueueFactory.Get<T>(4, "Th-InQ");
+        protected readonly IBoundedQueue<(T image, ISaveInfo saveInfo)> outputQueue = BoundedQueueFactory.Get<(T image, ISaveInfo saveInfo)>(2, "TH-OutQ");
 
         protected async Task ReadingThread(IImageReader<T> reader)
         {
@@ -30,22 +30,10 @@ namespace imageStacker.Core
         {
             try
             {
-                var tasks = new Queue<Task>();
-                (T image, ISaveInfo saveInfo) imageInfo;
-                while ((imageInfo = await outputQueue.DequeueOrDefault()).image != null)
-                {
-                    // don't use imageInfo directly here because it will be overwritten on the next iteration and change the value inside the lambda
-                    var localImageInfo = imageInfo;
-                    logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
-
-                    tasks.Enqueue(Task.Run(() => writer.WriteFile(localImageInfo.image, localImageInfo.saveInfo)));
-
-                    if (tasks.Count > 16)
-                        await tasks.Dequeue();
-                }
-                await Task.WhenAll(tasks);
+                writer.SetQueue(outputQueue);
+                await writer.WaitForCompletion();
                 logger.NotifyFillstate(outputQueue.Count, "WriteBuffer");
-                logger.WriteLine("Processing Ended", Verbosity.Warning, true);
+                logger.WriteLine("Processing Output Ended", Verbosity.Warning, true);
             }
             catch (Exception e)
             {

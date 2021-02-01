@@ -2,7 +2,19 @@
 
 namespace imageStacker.Core.Abstraction
 {
-    public interface IBoundedQueue<T>
+    public interface IBoundedQueue
+    {
+        /// <summary>
+        /// Wait until an item is available, return null if queue is already completed.
+        /// </summary>
+        /// <returns></returns>
+        bool IsCompleted { get; }
+        bool IsAddingCompleted { get; }
+        int Count { get; }
+        string Name { get; }
+        int AddedCount { get; }
+    }
+    public interface IBoundedQueue<T> : IBoundedQueue
     {
         Task Enqueue(T item);
         /// <summary>
@@ -10,17 +22,17 @@ namespace imageStacker.Core.Abstraction
         /// </summary>
         /// <returns></returns>
         Task<T> DequeueOrDefault();
-        bool IsCompleted { get; }
-        bool IsAddingCompleted { get; }
-        int Count { get; }
         void CompleteAdding();
     }
 
     public class BoundedQueueFactory
     {
-        public static IBoundedQueue<T> Get<T>(int capacity)
+        public static ILogger Logger { get; set; }
+        public static IBoundedQueue<T> Get<T>(int capacity, string name)
         {
-            return new SemaphoreBoundedQueue<T>(capacity);
+            var queue = new SemaphoreBoundedQueue<T>(capacity, name);
+            Logger?.AddQueue(queue);
+            return queue;
         }
     }
 }

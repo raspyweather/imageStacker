@@ -1,8 +1,10 @@
 ﻿using CommandLine;
 using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Readers;
 using imageStacker.Core.Writers;
+using imageStacker.ffmpeg;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -22,6 +24,18 @@ namespace imageStacker.Cli
                 return new Logger(Console.Error);
             }
             return new Logger(Console.Out);
+        }
+
+        public static IStackingEnvironment CheckConstraints(this IStackingEnvironment environment)
+        {
+            if (environment.Filters.Count > 1 && environment.OutputMode.GetType() == typeof(FfmpegVideoWriter))
+            {
+                environment.Logger?.WriteLine("Multiple filters and therefore video outputs are currently not supported.", Verbosity.Error, true);
+                environment.ThrowMe = true;
+                return environment;
+            }
+
+            return environment;
         }
 
         public static IStackingEnvironment ConfigureCommonEnvironment(this IStackingEnvironment env, CommonOptions info)
@@ -96,6 +110,24 @@ namespace imageStacker.Cli
                 return env;
             }
 
+            if (!string.IsNullOrWhiteSpace(commonOptions.OutputVideoFile))
+            {
+                if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
+                {
+                    env.Logger?.WriteLine("OutputFolder Option set, but is being ignored when using Video as output", Verbosity.Warning, true);
+                }
+
+                env.OutputMode = new FfmpegVideoWriter(
+                    new FfmpegVideoWriterArguments
+                    {
+                        OutputFile = commonOptions.OutputVideoFile,
+                        CustomArgs = commonOptions.OutputVideoOptions,
+                        PathToFfmpeg = commonOptions.FfmpegLocation
+                    },
+                    env.Logger);
+                return env;
+            }
+
             if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
             {
                 env.OutputMode = new ImageFileWriter<MutableByteImage>(commonOptions.OutputFilePrefix, commonOptions.OutputFolder, env.Factory);
@@ -111,6 +143,18 @@ namespace imageStacker.Cli
 
         public static IStackingEnvironment ConfigureInputMode(this IStackingEnvironment env, CommonOptions commonOptions)
         {
+            if (!string.IsNullOrWhiteSpace(commonOptions.InputVideoFile))
+            {
+                env.Logger?.WriteLine("Using Video Input - you might occur some bugs.", Verbosity.Warning);
+
+                env.InputMode = new FfmpegVideoReader(new FfmpegVideoReaderArguments
+                {
+                    InputFile = commonOptions.InputVideoFile,
+                    PathToFfmpeg = commonOptions.FfmpegLocation,
+                    CustomArgs = commonOptions.InputVideoArguments
+                }, env.Factory, env.Logger);
+                return env;
+            }
             if (commonOptions.UseInputPipe)
             {
                 env.Logger?.WriteLine("Currently only BGR24 input supported", Verbosity.Warning);
@@ -141,7 +185,7 @@ namespace imageStacker.Cli
 
                 return env;
             }
-            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Count() > 0)
+            if (commonOptions.InputFiles != null && commonOptions.InputFiles.Any())
             {
                 env.InputMode = new ImageMutliFileOrderedReader<MutableByteImage>(
                     env.Logger,
@@ -169,6 +213,7 @@ namespace imageStacker.Cli
                             Filter = commonOptions.InputFilter
                         });
                 }
+                return env;
             }
 
             env.Logger?.WriteLine("No Input Mode defined", Verbosity.Error);

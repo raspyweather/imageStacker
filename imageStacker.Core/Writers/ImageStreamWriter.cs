@@ -9,13 +9,18 @@ namespace imageStacker.Core.Writers
     /// <summary>
     /// Outputs raw RGB Byte Stream
     /// </summary>
-    public class ImageStreamWriter<T> : ImageWriter<T>, IDisposable where T : IProcessableImage
+    public class ImageStreamWriter<T> : IImageWriter<T>, IDisposable where T : IProcessableImage
     {
         private readonly Stream outputStream;
+        private IBoundedQueue<(T image, ISaveInfo info)> queue;
+        private readonly ILogger logger;
+        private readonly IMutableImageFactory<T> factory;
+
         public ImageStreamWriter(ILogger logger, IMutableImageFactory<T> factory, Stream outputStream)
-            : base(logger, factory)
         {
             this.outputStream = outputStream;
+            this.logger = logger;
+            this.factory = factory;
         }
 
         public void Dispose()
@@ -23,12 +28,24 @@ namespace imageStacker.Core.Writers
             outputStream?.Close();
         }
 
-        public override Task WriteFile(T image, ISaveInfo info)
+        public async Task WaitForCompletion()
         {
-            var imageAsBytes = factory.ToBytes(image);
-            outputStream.Write(imageAsBytes, 0, imageAsBytes.Length);
-            image = default(T);
-            return Task.CompletedTask;
+            while (true)
+            {
+                var (image, info) = await queue.DequeueOrDefault();
+                if (image == null || info == null)
+                {
+                    break;
+                }
+
+                var imageAsBytes = factory.ToBytes(image);
+                await outputStream.WriteAsync(imageAsBytes.AsMemory(0, imageAsBytes.Length));
+            }
+        }
+
+        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue)
+        {
+            this.queue = queue;
         }
 
         ~ImageStreamWriter()

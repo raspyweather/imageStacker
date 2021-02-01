@@ -15,7 +15,7 @@ namespace imageStacker.Core.Readers
         public ImageFileReader(ILogger logger, IMutableImageFactory<T> factory, IImageReaderOptions options)
             : base(logger, factory)
         {
-            if (options?.Files != null && options.Files.Count() > 0)
+            if (options?.Files != null && options.Files.Any())
             {
                 this.filenames = new Queue<string>(options.Files);
             }

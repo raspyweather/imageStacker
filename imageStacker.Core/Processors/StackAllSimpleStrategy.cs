@@ -1,4 +1,5 @@
-﻿using imageStacker.Core.Writers;
+﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Writers;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -29,9 +30,9 @@ namespace imageStacker.Core
                 }
             }
 
-            foreach (var data in baseImages)
+            foreach (var (filter, image, index) in baseImages)
             {
-                await outputQueue.Enqueue((data.image, new SaveInfo(null, data.filter.Name)));
+                await outputQueue.Enqueue((image, new SaveInfo(index, filter.Name)));
             }
             outputQueue.CompleteAdding();
         }

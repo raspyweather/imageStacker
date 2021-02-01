@@ -1,26 +1,21 @@
-﻿using System;
+﻿using imageStacker.Core.Abstraction;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Timers;
 
 namespace imageStacker.Core
 {
-    public interface ILogger : IDisposable
-    {
-        void NotifyFillstate(int count, string name);
-        void ShowFillStates(string text, Verbosity verbosity);
-        void WriteLine(string text, Verbosity verbosity, bool newLine = true);
-
-        void LogException(Exception e);
-    }
 
     public enum Verbosity
     {
+        Debug = 0,
         Verbose,
         Info,
         Warning,
-        Error
+        Error,
     }
 
     public class Logger : ILogger, IDisposable
@@ -28,19 +23,29 @@ namespace imageStacker.Core
         private readonly ConcurrentDictionary<string, int> fillStates = new ConcurrentDictionary<string, int>();
         private readonly TextWriter output;
         private readonly Timer printTimer;
+        private readonly Verbosity selectedLevel;
+        private List<IBoundedQueue> queues = new List<IBoundedQueue>();
 
-        public Logger(TextWriter output)
+        public Logger(TextWriter output, Verbosity level = Verbosity.Info)
         {
-            printTimer = new Timer(200);
-            printTimer.Elapsed += (o, e) => this.ShowFillStates("", Verbosity.Info);
+            this.selectedLevel = level;
+
+            printTimer = new Timer(2000);
+            printTimer.Elapsed += (o, e) =>
+            {
+                this.ShowFillStates(Verbosity.Info);
+                this.ShowQueueStates(Verbosity.Debug);
+            };
             printTimer.Start();
             this.output = output;
         }
 
-        public void ShowFillStates(string text, Verbosity verbosity)
-        {
-            this.WriteLine(string.Join(" ", fillStates.ToList().Select(x => $"{x.Key}:{x.Value:d4}").ToArray()), verbosity, false);
-        }
+        public void ShowQueueStates(Verbosity verbosity)
+            => this.WriteLine(string.Join("\n", queues.Select(x => $"{x.Name}:{x.Count:d4}:{x.AddedCount} {(x.IsAddingCompleted ? "ADc" : "ADn")} {(x.IsCompleted ? "iCc" : "iCn")}").ToArray()), verbosity, true);
+
+        public void ShowFillStates(Verbosity verbosity)
+            => this.WriteLine(string.Join(" ", fillStates.ToList().Select(x => $"{x.Key}:{x.Value:d4}").ToArray()), verbosity, false);
+
         public void NotifyFillstate(int count, string name)
         {
             fillStates[name] = count;
@@ -48,6 +53,8 @@ namespace imageStacker.Core
 
         public void WriteLine(string text, Verbosity verbosity, bool newLine = true)
         {
+            if (verbosity < selectedLevel) { return; }
+
             var prefix = verbosity == Verbosity.Error ? "ERROR" :
                          verbosity == Verbosity.Warning ? "WARN" :
                          verbosity == Verbosity.Info ? "INFO:" : "";
@@ -65,6 +72,11 @@ namespace imageStacker.Core
         {
             printTimer.Stop();
             printTimer.Dispose();
+        }
+
+        public void AddQueue<T>(SemaphoreBoundedQueue<T> queue)
+        {
+            this.queues.Add(queue);
         }
     }
 }

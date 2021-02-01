@@ -4,15 +4,33 @@ using System.Threading.Tasks;
 namespace imageStacker.Core.Writers
 
 {
-    public class TestImageWriter<T> : ImageWriter<T> where T : IProcessableImage
+    public class TestImageWriter<T> : IImageWriter<T> where T : IProcessableImage
     {
+        private readonly ILogger logger;
+        private readonly IMutableImageFactory<T> factory;
+        private IBoundedQueue<(T image, ISaveInfo info)> queue;
+
         public TestImageWriter(ILogger logger, IMutableImageFactory<T> factory)
-         : base(logger, factory)
         {
+            this.logger = logger;
+            this.factory = factory;
         }
-        public override Task WriteFile(T image, ISaveInfo info)
+
+        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue)
         {
-            return Task.CompletedTask;
+            this.queue = queue;
+        }
+
+        public async Task WaitForCompletion()
+        {
+            while (true)
+            {
+                var (image, info) = await queue.DequeueOrDefault();
+                if (image == null || info == null)
+                {
+                    break;
+                }
+            }
         }
     }
 }
