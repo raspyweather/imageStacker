@@ -12,12 +12,21 @@ Directory with Files:
 List of Files:
     --inputFiles a,b,c,d
 
-## Output 
+### Input from Pipe
+Very very beta :)
+    --inputByPipe
+    --inputSize 1920x1080
+
+## Output
 
 ### Output to video
     --outputFile a.mp4
     --outputVideoOptions "..."
     --outputPreset FHD, 4K 
+
+### Output to Pipe
+Very very beta :)
+    --outputToPipe
 
 ### Output to images
     --outputFolder 
