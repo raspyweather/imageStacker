@@ -31,7 +31,6 @@ namespace imageStacker.Cli
         public bool IsOrderRelevant { get; set; }
     }
 
-
     public interface ICommonOptions
     {
         bool UseOutputPipe { get; set; }
@@ -66,42 +65,54 @@ namespace imageStacker.Cli
 
     public abstract class CommonOptions : ICommonOptions
     {
+        [Option("ffmpegLocation", HelpText = "Path to ffmpeg executable")]
+        public virtual string FfmpegLocation { get; set; }
+
         #region InputFromPipe
-        [Option("inputFromPipe", Required = false)]
+        [Option("inputFromPipe", Required = false, HelpText = "Used to use stdin as input, required inputSize to be specified. Only bgr24 is currently supported.")]
         public virtual bool UseInputPipe { get; set; }
 
-        [Option("inputSize", HelpText = "Format: 1920x1080", Required = false)]
+        [Option("inputSize", HelpText = "Necessary for using stdin Format: 1920x1080", Required = false)]
         public virtual string InputSize { get; set; }
         #endregion
 
         #region InputFromFiles
-        [Option("inputFiles", Required = false)]
+        [Option("inputFiles", Required = false, HelpText = "List of image files to be used as stacking input")]
         public virtual IEnumerable<string> InputFiles { get; set; }
         #endregion
 
         #region InputFromFolder
-        [Option("inputFolder", Required = false)]
+        [Option("inputFolder", Required = false, HelpText = "Folder to select input files from.")]
         public virtual string InputFolder { get; set; }
 
         [Option("inputFilter", HelpText = "Filter for enumerating files of specified inputFolder, e.g. *.jpg")]
         public virtual string InputFilter { get; set; }
         #endregion
 
+        #region InputFromVideo
+
+        [Option("inputVideoFile", Required = false, HelpText = "Video file to extract frames from")]
+        public virtual string InputVideoFile { get; set; }
+
+        [Option("inputVideoArguments", Required = false, HelpText = "Arguments passed to ffmpeg for decoding. See ffmpeg -help for details")]
+        public virtual string InputVideoArguments { get; set; }
+        #endregion
+
         #region OutputToImages
-        [Option("outputFolder", Required = false)]
+        [Option("outputFolder", Required = false, HelpText = "Folder in which to create files. Necessary parameter for image series or single frame output.")]
         public virtual string OutputFolder { get; set; }
 
-        [Option("outputFilePrefix", HelpText = "Name Prefix of the output file written to the disk", Required = false)]
+        [Option("outputFilePrefix", HelpText = "Name Prefix of the output file written to the disk. Naming scheme: $outputFolder/$prefix-$filterName-$counter.png", Required = false)]
         public virtual string OutputFilePrefix { get; set; }
         #endregion
 
         #region OutputToPipe
-        [Option("outputToPipe", Required = false)]
+        [Option("outputToPipe", Required = false, HelpText = "Used to forward output to stdout (bgr24)")]
         public virtual bool UseOutputPipe { get; set; }
         #endregion
 
         #region OutputToVideo
-        [Option("outputFile")]
+        [Option("outputVideoFile", HelpText = "Video output filename; ignores outputFolder parameter")]
         public virtual string OutputVideoFile { get; set; }
 
         [Option("outputVideoOptions", HelpText = "ffmpeg Options")]
