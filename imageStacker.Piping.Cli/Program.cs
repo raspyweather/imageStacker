@@ -1,103 +1,113 @@
 ﻿using imageStacker.Core;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing.Processors.Effects;
+using imageStacker.Core.Abstraction;
+using imageStacker.Core.ByteImage;
+using imageStacker.Core.Readers;
+using imageStacker.ffmpeg;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
-using System.Text;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace imageStacker.Piping.Cli
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        public async static Task Main(string[] args)
         {
-            byte[] data1 = new byte[4896 * 3264 * 3];
-            byte[] data2 = new byte[4896 * 3264 * 3];
-            Random r = new Random();
-            r.NextBytes(data1);
-            r.NextBytes(data2);
+            Console.WriteLine(args[0]);
 
-            Stopwatch stopwatch = new Stopwatch();
+            var filterFactory = new MutableByteImageFilterFactory(true);
+            var filters = new List<IFilter<MutableByteImage>>
+                {
+                  filterFactory.CreateMaxFilter(new MaxOptions
+                          {
+                              Name ="max",
+                          }),
+                   filterFactory.CreateAttackDecayFilter(new AttackOptions
+                    {
+                        Attack = 1f,
+                        Decay= 0.2f,
+                        Name ="attackHF",
+                    }),
+                    filterFactory.CreateAttackDecayFilter(new AttackOptions
+                    {
+                        Attack = 1f,
+                        Decay= 0.01f,
+                        Name ="attackHS",
+                    }),
+                         filterFactory.CreateAttackDecayFilter(new AttackOptions
+                      {
+                          Attack = 0.2f,
+                          Decay= 1f,
+                          Name ="attackLF",
+                      }),
+                     filterFactory.CreateAttackDecayFilter(new AttackOptions
+                      {
+                          Attack = 0.01f,
+                          Decay= 1f,
+                          Name ="attackLS",
+                      }),
+                      filterFactory.CreateMinFilter(new MinOptions
+                      {
+                          Name ="min",
+                      }),
+                };
 
-            MutableByteImageFactory factory = new MutableByteImageFactory(null);
-            Bitmap bitmap = new Bitmap(4896, 3264, PixelFormat.Format24bppRgb);
+            var str = args[0];
+            foreach (var filter in filters)
+            {
+                using var logger = new Logger(Console.Out);
+                BoundedQueueFactory.Logger = logger;
+                Console.WriteLine(str);
+                var filename = Path.GetFileNameWithoutExtension(str);
+                var factory = new MutableByteImageFactory(logger);
+             /*   var reader = new FfmpegVideoReader(new FfmpegVideoReaderArguments
+                {
+                    InputFile = str
+                }, factory, logger);*/
 
-            var fs = new System.IO.FileStream("1.jpg", FileMode.Open);
-            MemoryStream memoryStream = new MemoryStream();
-            fs.CopyTo(memoryStream);
-            bitmap.Save(memoryStream, ImageFormat.Jpeg);
-            memoryStream.Seek(0, SeekOrigin.Begin);
+                var directoryName = (File.Exists(args[0])) ? Path.GetDirectoryName(args[0]) : args[0];
 
-            stopwatch.Start();
-            JpegDecode(memoryStream);
-            stopwatch.Stop();
-            Console.WriteLine($"jpegdecode {stopwatch.ElapsedMilliseconds}");
+                var commonExtension = Directory.GetFiles(directoryName)
+                    .Select(x => Path.GetExtension(x))
+                    .GroupBy(x => x)
+                    .OrderBy(x => x.Count()).First();
 
-            stopwatch.Reset();
-            memoryStream.Seek(0, SeekOrigin.Begin);
-            stopwatch.Start();
-            SysdrawingDecode(memoryStream);
-            stopwatch.Stop();
-            Console.WriteLine($"sysdecode {stopwatch.ElapsedMilliseconds}");
+                var reader = new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions
+                 {
+                     FolderName = args[0],
+                     Filter = $"*{commonExtension.Key}",
+                 });
 
-            stopwatch.Reset();
-            memoryStream.Seek(0, SeekOrigin.Begin);
-            stopwatch.Start();
-            SysdrawingDecode2(memoryStream);
-            stopwatch.Stop();
-            Console.WriteLine($"sysdecode2 {stopwatch.ElapsedMilliseconds}");
-
-            stopwatch.Reset();
-            memoryStream.Seek(0, SeekOrigin.Begin);
-            stopwatch.Start();
-            JpegDecode2(memoryStream);
-            stopwatch.Stop();
-            Console.WriteLine($"libjpg {stopwatch.ElapsedMilliseconds}");
-        }
-
-        private static MemoryStream JpegDecode(MemoryStream jpegData)
-        {
-            var byteStream = new MemoryStream();
-            JpegDecoder d = new JpegDecoder();
-            var img = d.Decode(new Configuration(new JpegConfigurationModule()), jpegData);
-            img.SaveAsBmp(byteStream, new SixLabors.ImageSharp.Formats.Bmp.BmpEncoder());
-            //using SixLabors.ImageSharp.Image image = SixLabors.ImageSharp.Image.Load(jpegData, new JpegDecoder());
-            // image.SaveAsBmp(byteStream);
-            return byteStream;
-        }
+                var processingStrategy = new StackProgressiveStrategy<MutableByteImage>(logger, factory);
 
 
-        private static MemoryStream JpegDecode2(MemoryStream jpegData)
-        {
-            var byteStream = new MemoryStream();
-            var i = new BitMiracle.LibJpeg.JpegImage(jpegData);
-            i.WriteBitmap(byteStream);
-            //using SixLabors.ImageSharp.Image image = SixLabors.ImageSharp.Image.Load(jpegData, new JpegDecoder());
-            // image.SaveAsBmp(byteStream);
-            return byteStream;
-        }
+                System.Diagnostics.Stopwatch st = new System.Diagnostics.Stopwatch();
+                st.Start();
 
-        private static MemoryStream SysdrawingDecode(MemoryStream jpegData)
-        {
-            var byteStream = new MemoryStream();
-            using System.Drawing.Image image = System.Drawing.Image.FromStream(jpegData);
-            image.Save(byteStream, ImageFormat.Bmp);
-            return byteStream;
-        }
+                //var writer = new ImageFileWriter<MutableByteImage>(filename, ".", factory);
 
-        private static MemoryStream SysdrawingDecode2(MemoryStream jpegData)
-        {
-            var byteStream = new MemoryStream();
-            using System.Drawing.Image image = System.Drawing.Image.FromStream(jpegData);
-            using var img = new Bitmap(image);
-            img.Save(jpegData, ImageFormat.MemoryBmp);
-            return byteStream;
+                var resultingFilename =/* @"H:\timelapses\stackedVideo\" +*/ Path.GetRandomFileName() + filename + "-" + filter.Name + ".mp4";
+                if (File.Exists(resultingFilename))
+                {
+                    st.Stop();
+                    Console.WriteLine($"Skipped {resultingFilename}");
+                    continue;
+                }
+
+                var writer = new FfmpegVideoWriter(new FfmpegVideoWriterArguments
+                {
+                    Framerate = 60,
+                    OutputFile = resultingFilename
+                }, logger);
+
+                await processingStrategy.Process(reader, new List<IFilter<MutableByteImage>> { filter }, writer);
+
+                st.Stop();
+                Console.WriteLine($"it took {st.ElapsedMilliseconds}ms");
+            }
         }
     }
 }
