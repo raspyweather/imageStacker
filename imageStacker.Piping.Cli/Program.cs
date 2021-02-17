@@ -59,7 +59,7 @@ namespace imageStacker.Piping.Cli
             foreach (var filter in filters)
             {
                 using var logger = new Logger(Console.Out);
-                BoundedQueueFactory.Logger = logger;
+                StaticLogger.Instance = logger;
                 Console.WriteLine(str);
                 var filename = Path.GetFileNameWithoutExtension(str);
                 var factory = new MutableByteImageFactory(logger);
@@ -75,11 +75,12 @@ namespace imageStacker.Piping.Cli
                     .GroupBy(x => x)
                     .OrderBy(x => x.Count()).First();
 
-                var reader = new ImageMutliFileOrderedReader<MutableByteImage>(logger, factory, new ReaderOptions
-                 {
-                     FolderName = args[0],
-                     Filter = $"*{commonExtension.Key}",
-                 });
+                var reader = new ImageMutliFileReader<MutableByteImage>(logger, factory, new ReaderOptions
+                    {
+                        FolderName = args[0],
+                        Filter = $"*{commonExtension.Key}",
+                    },
+                    true);
 
                 var processingStrategy = new StackProgressiveStrategy<MutableByteImage>(logger, factory);
 

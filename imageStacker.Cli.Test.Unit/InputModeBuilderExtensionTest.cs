@@ -25,7 +25,7 @@ namespace imageStacker.Cli.Test.Unit
 
             basicEnvironment.InputMode.Should().NotBeNull();
             basicEnvironment.ThrowMe.Should().BeFalse();
-            basicEnvironment.InputMode.Should().BeOfType<ImageMutliFileOrderedReader<MutableByteImage>>();
+            basicEnvironment.InputMode.Should().BeOfType<ImageMutliFileReader<MutableByteImage>>();
         }
 
         [Fact]

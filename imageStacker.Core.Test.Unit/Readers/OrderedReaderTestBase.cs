@@ -3,6 +3,7 @@ using imageStacker.Core.ByteImage;
 using imageStacker.Core.Test.Unit.ByteImage;
 using System;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using Xunit;
 
 namespace imageStacker.Core.Test.Unit.Readers
@@ -22,11 +23,21 @@ namespace imageStacker.Core.Test.Unit.Readers
         {
             Prepare();
             var reader = Reader;
-            var t = Task.Run(() => reader.Produce(queue));
+            reader.GetSource().LinkTo(queue, new DataflowLinkOptions { PropagateCompletion = true });
+            var t = Task.Run(() => reader.Work());
             int i = 0;
             MutableByteImage data;
-            while ((data = await queue.DequeueOrDefault()) != null)
+            while (true)
             {
+                try
+                {
+                    data = await queue.ReceiveAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+
                 data.Data[0].Should().Be((byte)(i));
                 i++;
                 await Task.Yield();

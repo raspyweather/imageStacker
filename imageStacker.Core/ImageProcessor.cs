@@ -6,17 +6,17 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core
 {
-
     public class StackAllMergeStrategy<T> : ThreadProcessingStrategy<T>, IImageProcessingStrategy<T> where T : IProcessableImage
     {
         public StackAllMergeStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         { }
-        protected override async Task ProcessingThread(List<IFilter<T>> filters)
+        protected override async Task ProcessingThread(List<IFilter<T>> filters, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
-            T firstMutableImage = await GetFirstImage();
+            T firstMutableImage = await inputQueue.ReceiveAsync();
 
             const int threadsToUtilize = 16;
 
@@ -29,10 +29,17 @@ namespace imageStacker.Core
 
             var tasks = new ConcurrentQueue<Task>();
 
-            T nextImage;
-            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            while (true)
             {
-                var localNextImage = nextImage;
+                T nextImage;
+                try
+                {
+                    nextImage = await inputQueue.ReceiveAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
                 logger.NotifyFillstate(tasks.Count, "ProcessBuffer");
                 while (tasks.Count >= 8)
                 {
@@ -46,7 +53,7 @@ namespace imageStacker.Core
                     {
                         foreach (var (filter, image) in currentJob)
                         {
-                            filter.Process(image, localNextImage);
+                            filter.Process(image, nextImage);
                         }
                     });
                     jobs.Enqueue(currentJob);
@@ -67,10 +74,10 @@ namespace imageStacker.Core
 
             foreach (var (filter, image) in previousJob)
             {
-                await outputQueue.Enqueue((image, new SaveInfo(null, filter.Name)));
+                await outputQueue.SendAsync((image, new SaveInfo(null, filter.Name)));
             }
 
-            outputQueue.CompleteAdding();
+            outputQueue.Complete();
         }
     }
 
@@ -79,15 +86,24 @@ namespace imageStacker.Core
         public CopyStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         { }
 
-        protected async override Task ProcessingThread(List<IFilter<T>> filter)
+        protected async override Task ProcessingThread(List<IFilter<T>> filter, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
             int idx = 0;
-            T image;
-            while ((image = await inputQueue.DequeueOrDefault()) != null)
+            while (true)
             {
-                await outputQueue.Enqueue((image, new SaveInfo(idx++, "foo")));
+                T image;
+                try
+                {
+                    image = await inputQueue.ReceiveAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+
+                await outputQueue.SendAsync((image, new SaveInfo(idx++, "foo")));
             }
-            outputQueue.CompleteAdding();
+            outputQueue.Complete();
             logger.WriteLine("finished copying", Verbosity.Info);
         }
     }
@@ -101,15 +117,24 @@ namespace imageStacker.Core
             StackCount = stackCount;
         }
 
-        protected override async Task ProcessingThread(List<IFilter<T>> filters)
+        protected override async Task ProcessingThread(List<IFilter<T>> filters, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
             var bufferQueue = new Queue<(IFilter<T> filter, T image, Task task, int appliedImages, int startIndex)>();
             int maxSize = filters.Count * StackCount;
 
             int i = 0;
-            T nextImage;
-            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            while (true)
             {
+                T nextImage;
+                try
+                {
+                    nextImage = await inputQueue.ReceiveAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+
                 for (int ii = 0; ii < bufferQueue.Count; ii++)
                 {
                     var data = bufferQueue.Dequeue();
@@ -122,7 +147,7 @@ namespace imageStacker.Core
                 {
                     var (filter, image, t, appliedImages, startIndex) = bufferQueue.Dequeue();
                     await t;
-                    await outputQueue.Enqueue((image, new SaveInfo(startIndex, filter.Name)));
+                    await outputQueue.SendAsync((image, new SaveInfo(startIndex, filter.Name)));
                 }
 
                 filters.ForEach(filter =>
@@ -137,10 +162,10 @@ namespace imageStacker.Core
             {
                 var (filter, image, t, appliedImages, startindex) = bufferQueue.Dequeue();
                 await t;
-                await outputQueue.Enqueue((image, new SaveInfo(startindex, filter.Name)));
+                await outputQueue.SendAsync((image, new SaveInfo(startindex, filter.Name)));
             }
 
-            outputQueue.CompleteAdding();
+            outputQueue.Complete();
         }
     }
 
@@ -150,32 +175,37 @@ namespace imageStacker.Core
         {
 
         }
-        protected override async Task ProcessingThread(List<IFilter<T>> filters)
+        protected override async Task ProcessingThread(List<IFilter<T>> filters, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
-            T firstData = await GetFirstImage();
+            T firstData = await inputQueue.ReceiveAsync();
             var baseImages = filters.Select((filter) => (filter, image: factory.Clone(firstData), index: 0)).ToList();
 
             int i = 0;
-            T nextImage;
-            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            while (true)
             {
-                var tasks = baseImages.Select(data => Task.Run(() =>
+                T nextImage;
+                try
                 {
-                    data.index = i;
-                    data.filter.Process(data.image, nextImage);
-                    return data;
-                }));
-
-                var datas = await Task.WhenAll(tasks);
-
-                foreach (var (filter, image, index) in datas)
-                {
-                    await outputQueue.Enqueue((factory.Clone(image), new SaveInfo(index, filter.Name)));
+                    nextImage = await inputQueue.ReceiveAsync();
                 }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+
+                var tasks = baseImages.Select(data => Task.Run(async () =>
+                    {
+                        data.index = i;
+                        data.filter.Process(data.image, nextImage);
+                        await outputQueue.SendAsync((factory.Clone(data.image), new SaveInfo(data.index, data.filter.Name)));
+                        return data;
+                    }));
+
+                await Task.WhenAll(tasks);
 
                 i++;
             }
-            outputQueue.CompleteAdding();
+            outputQueue.Complete();
         }
     }
 }

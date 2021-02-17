@@ -23,6 +23,6 @@ namespace imageStacker.Core.Test.Unit.Readers
                 {
                     FolderName = base.tempPath,
                     Filter = "*.png"
-                });
+                }, false);
     }
 }

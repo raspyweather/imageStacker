@@ -1,12 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core.Abstraction
 {
     public interface IImageWriter<T> where T : IProcessableImage
     {
-        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue);
-
-        public Task WaitForCompletion();
+        public Task Work();
+        ITargetBlock<(T image, ISaveInfo saveInfo)> GetTarget();
     }
 }

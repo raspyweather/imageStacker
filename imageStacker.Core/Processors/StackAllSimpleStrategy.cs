@@ -1,9 +1,11 @@
 ﻿using imageStacker.Core.Abstraction;
 using imageStacker.Core.Writers;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core
 {
@@ -13,14 +15,23 @@ namespace imageStacker.Core
         {
         }
 
-        protected override async Task ProcessingThread(List<IFilter<T>> filters)
+        protected override async Task ProcessingThread(List<IFilter<T>> filters, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
-            T firstMutableImage = await GetFirstImage();
+            T firstMutableImage = await inputQueue.ReceiveAsync();
             var baseImages = filters.Select((filter, index) => (filter, image: factory.Clone(firstMutableImage), index)).ToList();
 
-            T nextImage;
-            while ((nextImage = await inputQueue.DequeueOrDefault()) != null)
+            while (true)
             {
+                T nextImage;
+                try
+                {
+                    nextImage = await inputQueue.ReceiveAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+
                 foreach (var item in baseImages)
                 {
                     foreach (var filter in filters)
@@ -32,10 +43,9 @@ namespace imageStacker.Core
 
             foreach (var (filter, image, index) in baseImages)
             {
-                await outputQueue.Enqueue((image, new SaveInfo(index, filter.Name)));
+                await outputQueue.SendAsync((image, new SaveInfo(index, filter.Name)));
             }
-            outputQueue.CompleteAdding();
+            outputQueue.Complete();
         }
-
     }
 }

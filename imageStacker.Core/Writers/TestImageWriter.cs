@@ -1,5 +1,6 @@
 ﻿using imageStacker.Core.Abstraction;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core.Writers
 
@@ -8,29 +9,23 @@ namespace imageStacker.Core.Writers
     {
         private readonly ILogger logger;
         private readonly IMutableImageFactory<T> factory;
-        private IBoundedQueue<(T image, ISaveInfo info)> queue;
+        private readonly ActionBlock<(T image, ISaveInfo saveInfo)> target;
 
         public TestImageWriter(ILogger logger, IMutableImageFactory<T> factory)
         {
             this.logger = logger;
             this.factory = factory;
+            this.target = new ActionBlock<(T image, ISaveInfo saveInfo)>(x => { });
         }
 
-        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue)
+        public ITargetBlock<(T image, ISaveInfo saveInfo)> GetTarget()
         {
-            this.queue = queue;
+            return this.target;
         }
 
-        public async Task WaitForCompletion()
+        public async Task Work()
         {
-            while (true)
-            {
-                var (image, info) = await queue.DequeueOrDefault();
-                if (image == null || info == null)
-                {
-                    break;
-                }
-            }
+            await this.target.Completion;
         }
     }
 }

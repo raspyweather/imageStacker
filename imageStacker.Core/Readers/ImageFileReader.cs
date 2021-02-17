@@ -1,4 +1,5 @@
 ﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -7,11 +8,15 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core.Readers
 {
     public class ImageFileReader<T> : ImageReaderBase<T> where T : IProcessableImage
     {
+        private readonly Queue<string> filenames;
+        private readonly BufferBlock<T> queue;
+
         public ImageFileReader(ILogger logger, IMutableImageFactory<T> factory, IImageReaderOptions options)
             : base(logger, factory)
         {
@@ -30,18 +35,22 @@ namespace imageStacker.Core.Readers
             }
 
             this.logger.WriteLine($"Items found: {filenames.Count}", Verbosity.Info);
+
+            var opts = new DataflowBlockOptions
+            {
+                BoundedCapacity = 16,
+                EnsureOrdered = true
+            };
+            this.queue = new BufferBlock<T>(opts).WithLogging("ReadFile");
         }
 
-        private readonly Queue<string> filenames;
-
-        public async override Task Produce(IBoundedQueue<T> queue)
+        public async override Task Work()
         {
             foreach (var filename in filenames)
             {
                 try
                 {
-                    logger.NotifyFillstate(queue.Count, this.GetType().Name);
-                    var bmp1 = new Bitmap(filename);
+                    using var bmp1 = new Bitmap(filename);
                     var height = bmp1.Height;
                     var width = bmp1.Width;
                     var pixelFormat = bmp1.PixelFormat;
@@ -52,13 +61,17 @@ namespace imageStacker.Core.Readers
                     byte[] bmp1Bytes = new byte[length];
                     Marshal.Copy(bmp1Data.Scan0, bmp1Bytes, 0, length);
                     var image = factory.FromBytes(width, height, bmp1Bytes);
-                    await queue.Enqueue(image);
+                    await queue.SendAsync(image);
                     bmp1.UnlockBits(bmp1Data);
-                    bmp1.Dispose();
                 }
                 catch (Exception e) { Console.WriteLine(e); }
             }
-            queue.CompleteAdding();
+            queue.Complete();
+        }
+
+        public override ISourceBlock<T> GetSource()
+        {
+            return queue;
         }
     }
 }

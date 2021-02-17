@@ -26,8 +26,6 @@ namespace imageStacker.Cli
 
             var env = GetBasicEnvironment();
 
-            BoundedQueueFactory.Logger = new Logger(Console.Out, Verbosity.Info);
-
             var result = Parser.Default
                 .ParseArguments<InfoOptions,
                                 StackAllOptions,
@@ -73,6 +71,7 @@ namespace imageStacker.Cli
                     info.OutputFolder = ".";
 
                     env.Logger = new Logger(Console.Out, Verbosity.Info);
+                    StaticLogger.Instance = env.Logger;
 
                     env.Factory = new MutableByteImageFactory(env.Logger);
 
@@ -115,8 +114,6 @@ namespace imageStacker.Cli
             env.Logger?.WriteLine($"{env.InputMode} {env.OutputMode} {env.ProcessingStrategy}", Verbosity.Info);
 
             env.CheckConstraints();
-
-            BoundedQueueFactory.Logger = env.Logger;
 
             await env.ProcessingStrategy.Process(env.InputMode, env.Filters, env.OutputMode);
             st.Stop();

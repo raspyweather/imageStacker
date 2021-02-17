@@ -1,11 +1,11 @@
 ﻿using FFMpegCore;
-using FFMpegCore.Pipes;
 using imageStacker.Core;
 using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using System;
 using System.Drawing;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.ffmpeg
 {
@@ -14,15 +14,30 @@ namespace imageStacker.ffmpeg
         private readonly FfmpegVideoReaderArguments _arguments;
         private readonly ILogger _logger;
         private readonly IMutableImageFactory<MutableByteImage> _factory;
+        private readonly TransformBlock<(int width, int height, byte[] data), MutableByteImage> transformBlock;
 
         public FfmpegVideoReader(FfmpegVideoReaderArguments arguments, IMutableImageFactory<MutableByteImage> factory, ILogger logger)
         {
             _arguments = arguments;
             _logger = logger;
             _factory = factory;
+
+            var flowOptions = new ExecutionDataflowBlockOptions
+            {
+                BoundedCapacity = 16,
+                EnsureOrdered = true,
+                MaxDegreeOfParallelism = 8
+            };
+
+            transformBlock = new TransformBlock<(int width, int height, byte[] data), MutableByteImage>(x => GetImageFromBytes(x.width, x.height, x.data), flowOptions);
         }
 
-        public async Task Produce(IBoundedQueue<MutableByteImage> sourceQueue)
+        public ISourceBlock<MutableByteImage> GetSource()
+        {
+            return transformBlock;
+        }
+
+        public async Task Work()
         {
             try
             {
@@ -38,36 +53,30 @@ namespace imageStacker.ffmpeg
 
                 var width = result.PrimaryVideoStream.Width;
                 var height = result.PrimaryVideoStream.Height;
+
+                _logger.WriteLine("Input from ffmpeg currently only supports rgb24-convertable input", Verbosity.Warning);
+
                 var bpp = Image.GetPixelFormatSize(System.Drawing.Imaging.PixelFormat.Format24bppRgb) / 8;
                 var pixelsPerFrame = width * height;
 
                 var frameSizeInBytes = pixelsPerFrame * bpp;
 
-                _logger.WriteLine("Input from ffmpeg currently only supports rgb24-convertable input", Verbosity.Warning);
-
-                var chunksQueue = BoundedQueueFactory.Get<byte[]>(4,"In-ChuQ");
-                using var memoryStream = new ChunkedSimpleMemoryStream(frameSizeInBytes, chunksQueue); // new MemoryStream(frameSizeInBytes);
-                StreamPipeSink sink = new StreamPipeSink(memoryStream);
+                var sink = new RawImagePipeSink(frameSizeInBytes, async bytes => await transformBlock.SendAsync((width, height, bytes)));
                 var args = FFMpegArguments
-                    .FromFileInput(_arguments.InputFile).OutputToPipe(sink, options =>
-                     options.DisableChannel(FFMpegCore.Enums.Channel.Audio)
-                     .UsingMultithreading(true)
-                     .ForceFormat("rawvideo")
-                     .WithCustomArgument(_arguments.CustomArgs ?? string.Empty)
-                     .ForcePixelFormat("bgr24"))
+                    .FromFileInput(_arguments.InputFile)
+                    .OutputToPipe(sink, options =>
+                        options.DisableChannel(FFMpegCore.Enums.Channel.Audio)
+                            .UsingMultithreading(true)
+                            .ForceFormat("rawvideo")
+                            .WithCustomArgument(_arguments.CustomArgs ?? string.Empty)
+                            .ForcePixelFormat("bgr24"))
                     .NotifyOnProgress(
                         percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "InputVideoParsing"),
                         TimeSpan.FromSeconds(1));
 
-                var produceTask = args.ProcessAsynchronously(true).ContinueWith((_) =>
-                {
-                    chunksQueue.CompleteAdding();
-                    sourceQueue.CompleteAdding();
-                });
-                var consumeTask = ParseInputStream(sourceQueue, chunksQueue, width, height, memoryStream)
-                    .ContinueWith((_) => _logger.WriteLine("finished reading", Verbosity.Info));
+                await args.ProcessAsynchronously();
 
-                await Task.WhenAll(produceTask, consumeTask);
+                await transformBlock.Completion;
 
                 _logger.WriteLine("finished reading", Verbosity.Info);
             }
@@ -81,28 +90,9 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        private async Task ParseInputStream(IBoundedQueue<MutableByteImage> queue, IBoundedQueue<byte[]> chunksQueue, int width, int height, ChunkedSimpleMemoryStream memoryStream)
+        private MutableByteImage GetImageFromBytes(int width, int height, byte[] bytes)
         {
-            int count = 0;
-
-            while (true)
-            {
-                try
-                {
-                    var item = await chunksQueue.DequeueOrDefault();
-                    if (item == default) { break; }
-
-                    _logger.NotifyFillstate(++count, "ParsedImages");
-                    _logger.NotifyFillstate(chunksQueue.Count, "ChunkedQueue");
-                    await queue.Enqueue(_factory.FromBytes(width, height, item));
-                }
-                catch (Exception e) { _logger.LogException(e); }
-            }
-            if (memoryStream.HasUnwrittenData)
-            {
-                _logger.WriteLine("Unwritten data exists after finishing parsings." +
-                    " This indicates a severe issue with frame splitting", Verbosity.Warning);
-            }
+            return _factory.FromBytes(width, height, bytes);
         }
     }
 }

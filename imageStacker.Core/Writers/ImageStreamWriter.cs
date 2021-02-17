@@ -1,10 +1,11 @@
 ﻿using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core.Writers
-
 {
     /// <summary>
     /// Outputs raw RGB Byte Stream
@@ -12,15 +13,20 @@ namespace imageStacker.Core.Writers
     public class ImageStreamWriter<T> : IImageWriter<T>, IDisposable where T : IProcessableImage
     {
         private readonly Stream outputStream;
-        private IBoundedQueue<(T image, ISaveInfo info)> queue;
-        private readonly ILogger logger;
         private readonly IMutableImageFactory<T> factory;
+        private readonly ActionBlock<(T image, ISaveInfo info)> actionBlock;
 
         public ImageStreamWriter(ILogger logger, IMutableImageFactory<T> factory, Stream outputStream)
         {
             this.outputStream = outputStream;
-            this.logger = logger;
             this.factory = factory;
+            var options = new ExecutionDataflowBlockOptions
+            {
+                BoundedCapacity = 16,
+                EnsureOrdered = true,
+                MaxDegreeOfParallelism = 1
+            };
+            this.actionBlock = new ActionBlock<(T image, ISaveInfo info)>(WriteImage, options).WithLogging("WriteStream");
         }
 
         public void Dispose()
@@ -28,24 +34,20 @@ namespace imageStacker.Core.Writers
             outputStream?.Close();
         }
 
-        public async Task WaitForCompletion()
+        public async Task Work()
         {
-            while (true)
-            {
-                var (image, info) = await queue.DequeueOrDefault();
-                if (image == null || info == null)
-                {
-                    break;
-                }
-
-                var imageAsBytes = factory.ToBytes(image);
-                await outputStream.WriteAsync(imageAsBytes.AsMemory(0, imageAsBytes.Length));
-            }
+            await this.actionBlock.Completion;
         }
 
-        public void SetQueue(IBoundedQueue<(T image, ISaveInfo info)> queue)
+        private async Task WriteImage((T image, ISaveInfo info) imageItem)
         {
-            this.queue = queue;
+            var imageAsBytes = factory.ToBytes(imageItem.image); //TODO: do this in a BufferBlock once ToBytes does anything performance-critical
+            await outputStream.WriteAsync(imageAsBytes);
+        }
+
+        public ITargetBlock<(T image, ISaveInfo saveInfo)> GetTarget()
+        {
+            return actionBlock;
         }
 
         ~ImageStreamWriter()
