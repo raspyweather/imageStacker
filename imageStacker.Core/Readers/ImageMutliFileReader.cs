@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -69,6 +70,8 @@ namespace imageStacker.Core.Readers
             return new MemoryStream(File.ReadAllBytes(filename), false);
         }
 
+        private int fileReadCount = 0;
+
         private T DecodeImage(MemoryStream data)
         {
             using (data)
@@ -83,6 +86,9 @@ namespace imageStacker.Core.Readers
                 byte[] bitmapBytes = new byte[length];
                 Marshal.Copy(bmp1Data.Scan0, bitmapBytes, 0, length);
                 bmp.UnlockBits(bmp1Data);
+
+                Interlocked.Increment(ref fileReadCount);
+                this.logger?.NotifyFillstate(fileReadCount, "FilesRead");
 
                 return factory.FromBytes(width, height, bitmapBytes);
             }

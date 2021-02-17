@@ -26,8 +26,6 @@ namespace imageStacker.Cli
 
             var env = GetBasicEnvironment();
 
-            StaticLogger.Instance = new Logger(Console.Out, Verbosity.Info);
-
             var result = Parser.Default
                 .ParseArguments<InfoOptions,
                                 StackAllOptions,
@@ -73,6 +71,7 @@ namespace imageStacker.Cli
                     info.OutputFolder = ".";
 
                     env.Logger = new Logger(Console.Out, Verbosity.Info);
+                    StaticLogger.Instance = env.Logger;
 
                     env.Factory = new MutableByteImageFactory(env.Logger);
 

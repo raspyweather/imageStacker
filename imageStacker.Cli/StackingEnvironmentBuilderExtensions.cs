@@ -41,6 +41,8 @@ namespace imageStacker.Cli
         public static IStackingEnvironment ConfigureCommonEnvironment(this IStackingEnvironment env, CommonOptions info)
         {
             env.Logger = CreateLogger(info);
+            StaticLogger.Instance = env.Logger;
+
             env.Factory = new MutableByteImageFactory(env.Logger);
 
             env.ConfigureFilters(info.Filters);
