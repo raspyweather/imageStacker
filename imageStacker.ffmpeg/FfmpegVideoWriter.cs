@@ -3,10 +3,12 @@ using FFMpegCore.Pipes;
 using imageStacker.Core;
 using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
+using imageStacker.Core.Extensions;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.ffmpeg
 {
@@ -16,22 +18,22 @@ namespace imageStacker.ffmpeg
         {
             _arguments = arguments;
             _logger = logger;
-        }
 
-        private RawVideoPipeSource source;
+            var opts = new DataflowBlockOptions
+            {
+                BoundedCapacity = 16,
+                EnsureOrdered = true
+            };
+            this.queue = new BufferBlock<(MutableByteImage image, ISaveInfo info)>(opts).WithLogging("WriteVideo");
+        }
 
         private readonly ILogger _logger;
 
-        private IBoundedQueue<(MutableByteImage image, ISaveInfo info)> boundedQueue;
+        private BufferBlock<(MutableByteImage image, ISaveInfo info)> queue;
 
         private readonly FfmpegVideoWriterArguments _arguments;
 
-        public async Task WriteFile(MutableByteImage image, ISaveInfo info)
-        {
-            await boundedQueue.Enqueue((image, info));
-        }
-
-        public async Task WaitForCompletion()
+        public async Task Work()
         {
             if (!string.IsNullOrWhiteSpace(_arguments.PathToFfmpeg))
             {
@@ -40,6 +42,8 @@ namespace imageStacker.ffmpeg
                     RootDirectory = _arguments.PathToFfmpeg
                 });
             }
+
+            var source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
 
             var args = FFMpegArguments
                    .FromPipeInput(source, args =>
@@ -60,13 +64,12 @@ namespace imageStacker.ffmpeg
 
             await args.ProcessAsynchronously(true);
             _logger.WriteLine("finished writing", Verbosity.Info);
-            boundedQueue.CompleteAdding();
+            queue.Complete();
         }
 
-        public void SetQueue(IBoundedQueue<(MutableByteImage image, ISaveInfo info)> queue)
+        public ITargetBlock<(MutableByteImage image, ISaveInfo saveInfo)> GetTarget()
         {
-            this.boundedQueue = queue;
-            this.source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
+            return queue;
         }
     }
 
@@ -91,12 +94,12 @@ namespace imageStacker.ffmpeg
 
     public class MutableByteImageBoundedQueueEnumerator : IEnumerator<IVideoFrame>
     {
-        public MutableByteImageBoundedQueueEnumerator(IBoundedQueue<(MutableByteImage image, ISaveInfo info)> queue)
+        public MutableByteImageBoundedQueueEnumerator(ISourceBlock<(MutableByteImage image, ISaveInfo info)> queue)
         {
             this.queue = queue;
         }
 
-        private readonly IBoundedQueue<(MutableByteImage image, ISaveInfo info)> queue;
+        private readonly ISourceBlock<(MutableByteImage image, ISaveInfo info)> queue;
         public IVideoFrame Current { get; private set; }
 
         object IEnumerator.Current => Current;
@@ -109,17 +112,11 @@ namespace imageStacker.ffmpeg
         {
             try
             {
-                var item = this.queue.DequeueOrDefault();
-                item.Wait();
-                var frame = item.Result;
-                if (frame == default)
-                {
-                    return false;
-                }
+                var frame = this.queue.Receive();
                 this.Current = new FfmpegVideoFrame(frame.image);
                 return true;
             }
-            catch
+            catch(InvalidOperationException)
             {
                 return false;
             }

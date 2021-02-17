@@ -187,10 +187,11 @@ namespace imageStacker.Cli
             }
             if (commonOptions.InputFiles != null && commonOptions.InputFiles.Any())
             {
-                env.InputMode = new ImageMutliFileOrderedReader<MutableByteImage>(
+                env.InputMode = new ImageMutliFileReader<MutableByteImage>(
                     env.Logger,
                     env.Factory,
-                    new ReaderOptions { Files = commonOptions.InputFiles.ToArray() });
+                    new ReaderOptions { Files = commonOptions.InputFiles.ToArray() },
+                    true);
 
                 return env;
             }
@@ -204,14 +205,15 @@ namespace imageStacker.Cli
                 }
                 else
                 {
-                    env.InputMode = new ImageMutliFileOrderedReader<MutableByteImage>(
+                    env.InputMode = new ImageMutliFileReader<MutableByteImage>(
                         env.Logger,
                         env.Factory,
                         new ReaderOptions
                         {
                             FolderName = commonOptions.InputFolder,
                             Filter = commonOptions.InputFilter
-                        });
+                        },
+                        true);
                 }
                 return env;
             }

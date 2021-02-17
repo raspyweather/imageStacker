@@ -20,11 +20,11 @@ namespace imageStacker.Core
 
     public class Logger : ILogger, IDisposable
     {
-        private readonly ConcurrentDictionary<string, int> fillStates = new ConcurrentDictionary<string, int>();
+        private readonly ConcurrentDictionary<string, string> fillStates = new ConcurrentDictionary<string, string>();
         private readonly TextWriter output;
         private readonly Timer printTimer;
         private readonly Verbosity selectedLevel;
-        private List<IBoundedQueue> queues = new List<IBoundedQueue>();
+        private IDictionary<string, Func<string>> queues = new Dictionary<string, Func<string>>();
 
         public Logger(TextWriter output, Verbosity level = Verbosity.Info)
         {
@@ -33,22 +33,21 @@ namespace imageStacker.Core
             printTimer = new Timer(2000);
             printTimer.Elapsed += (o, e) =>
             {
+                foreach (var queue in queues)
+                {
+                    fillStates[queue.Key] = queue.Value();
+                }
                 this.ShowFillStates(Verbosity.Info);
-                this.ShowQueueStates(Verbosity.Debug);
             };
             printTimer.Start();
             this.output = output;
         }
-
-        public void ShowQueueStates(Verbosity verbosity)
-            => this.WriteLine(string.Join("\n", queues.Select(x => $"{x.Name}:{x.Count:d4}:{x.AddedCount} {(x.IsAddingCompleted ? "ADc" : "ADn")} {(x.IsCompleted ? "iCc" : "iCn")}").ToArray()), verbosity, true);
-
-        public void ShowFillStates(Verbosity verbosity)
+        private void ShowFillStates(Verbosity verbosity)
             => this.WriteLine(string.Join(" ", fillStates.ToList().Select(x => $"{x.Key}:{x.Value:d4}").ToArray()), verbosity, false);
 
         public void NotifyFillstate(int count, string name)
         {
-            fillStates[name] = count;
+            fillStates[name] = count.ToString("D4");
         }
 
         public void WriteLine(string text, Verbosity verbosity, bool newLine = true)
@@ -74,9 +73,9 @@ namespace imageStacker.Core
             printTimer.Dispose();
         }
 
-        public void AddQueue<T>(SemaphoreBoundedQueue<T> queue)
+        public void AddQueue(Func<string> getInfo, string name)
         {
-            this.queues.Add(queue);
+            queues.Add(name, getInfo);
         }
     }
 }

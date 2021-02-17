@@ -1,5 +1,6 @@
 ﻿using imageStacker.Core.Abstraction;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace imageStacker.Core
 {
@@ -13,7 +14,8 @@ namespace imageStacker.Core
             this.factory = factory;
         }
 
-        public abstract Task Produce(IBoundedQueue<T> queue);
+        public abstract ISourceBlock<T> GetSource();
+        public abstract Task Work();
     }
 
 }
