@@ -193,19 +193,15 @@ namespace imageStacker.Core
                     break;
                 }
 
-                var tasks = baseImages.Select(data => Task.Run(() =>
-                {
-                    data.index = i;
-                    data.filter.Process(data.image, nextImage);
-                    return data;
-                }));
+                var tasks = baseImages.Select(data => Task.Run(async () =>
+                    {
+                        data.index = i;
+                        data.filter.Process(data.image, nextImage);
+                        await outputQueue.SendAsync((factory.Clone(data.image), new SaveInfo(data.index, data.filter.Name)));
+                        return data;
+                    }));
 
-                var datas = await Task.WhenAll(tasks);
-
-                foreach (var (filter, image, index) in datas)
-                {
-                    await outputQueue.SendAsync((factory.Clone(image), new SaveInfo(index, filter.Name)));
-                }
+                await Task.WhenAll(tasks);
 
                 i++;
             }
