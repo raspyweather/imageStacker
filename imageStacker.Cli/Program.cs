@@ -131,10 +131,11 @@ namespace imageStacker.Cli
                 logger.WriteLine("Testing Filters", Verbosity.Info);
 
                 foreach (var filter in new List<IFilter<MutableByteImage>> {
-                    new MinFilter(new MinFilterOptions{ }),
-                    new MinVecFilter(new MinFilterOptions{ }),
-                    new MaxFilter(new MaxFilterOptions{ }),
-                    new MaxVecFilter(new MaxFilterOptions{ }),
+                    new MinFilter(),
+                    new MinVecFilter(),
+                    new MaxFilter(),
+                    new MaxVecFilter(),
+                    new CopyFilter(),
                     new AttackDecayFilter( new AttackDecayFilterOptions{ }),
                     new AttackDecayVecFilter(new AttackDecayFilterOptions{ }) })
                 {

@@ -19,6 +19,9 @@ namespace imageStacker.Core.ByteImage
             return new AttackDecayFilter(options);
         }
 
+        public IFilter<MutableByteImage> CreateCopyFilter(ICopyFilterOptions options)
+            => new CopyFilter(options);
+
         public IFilter<MutableByteImage> CreateMaxFilter(IMaxFilterOptions options)
         {
             var vectorizedFilter = new MaxVecFilter(options);

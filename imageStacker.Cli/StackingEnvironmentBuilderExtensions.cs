@@ -94,9 +94,11 @@ namespace imageStacker.Cli
                 var result = Parser.Default
                         .ParseArguments<MaxFilterOptions,
                                         MinFilterOptions,
+                                        CopyFilterOptions,
                                         AttackDecayFilterOptions>(group)
                                         .WithParsed<MaxFilterOptions>(options => environment.Filters.Add(factory.CreateMaxFilter(options)))
                                         .WithParsed<MinFilterOptions>(options => environment.Filters.Add(factory.CreateMinFilter(options)))
+                                        .WithParsed<CopyFilterOptions>(options=> environment.Filters.Add(factory.CreateCopyFilter(options)))
                                         .WithParsed<AttackDecayFilterOptions>(options => environment.Filters.Add(factory.CreateAttackDecayFilter(options)))
                                         .WithNotParsed(e => Console.Write(e.ToString()));
             }
