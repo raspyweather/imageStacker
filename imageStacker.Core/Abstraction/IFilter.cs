@@ -6,6 +6,6 @@
 
         public bool IsSupported { get; }
 
-        public void Process(T currentIamge, T nextPicture);
+        public void Process(T currentPicture, T nextPicture);
     }
 }
