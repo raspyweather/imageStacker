@@ -21,7 +21,7 @@ namespace imageStacker.Cli
     {
         public static async Task Main(string[] args)
         {
-            Stopwatch st = new Stopwatch();
+            var st = new Stopwatch();
             st.Start();
 
             var env = GetBasicEnvironment();
@@ -139,7 +139,7 @@ namespace imageStacker.Cli
                     new AttackDecayFilter( new AttackDecayFilterOptions{ }),
                     new AttackDecayVecFilter(new AttackDecayFilterOptions{ }) })
                 {
-                    Stopwatch stopwatch = new Stopwatch();
+                    var stopwatch = new Stopwatch();
 
 
                     var imageReader = new TestImageReader<MutableByteImage>
