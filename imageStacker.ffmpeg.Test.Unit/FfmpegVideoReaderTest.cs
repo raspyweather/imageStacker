@@ -11,8 +11,8 @@ namespace imageStacker.ffmpeg.Test.Unit
             new MutableByteImageProvider(8, 8),
             new MutableByteImageFactory(new Logger(TextWriter.Null)),
             255)
-        {
-        }
+        { }
+
         protected override IImageReader<MutableByteImage> Reader =>
             new FfmpegVideoReader(
                 new FfmpegVideoReaderArguments

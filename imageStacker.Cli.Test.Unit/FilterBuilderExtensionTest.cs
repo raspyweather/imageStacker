@@ -2,11 +2,7 @@
 using imageStacker.Core;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace imageStacker.Cli.Test.Unit

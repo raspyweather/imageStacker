@@ -2,12 +2,7 @@
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Test.Unit.ByteImage;
 using imageStacker.Core.Test.Unit.Readers;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace imageStacker.ffmpeg.Test.Unit
 {
