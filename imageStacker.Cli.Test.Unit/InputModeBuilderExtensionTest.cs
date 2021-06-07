@@ -1,9 +1,6 @@
 using FluentAssertions;
-using imageStacker.Core;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Readers;
-using System;
-using System.IO;
 using Xunit;
 
 namespace imageStacker.Cli.Test.Unit

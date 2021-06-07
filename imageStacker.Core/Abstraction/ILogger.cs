@@ -1,5 +1,4 @@
-﻿using imageStacker.Core.Abstraction;
-using System;
+﻿using System;
 
 namespace imageStacker.Core.Abstraction
 {

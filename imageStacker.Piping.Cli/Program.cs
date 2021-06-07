@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace imageStacker.Piping.Cli
@@ -63,10 +62,6 @@ namespace imageStacker.Piping.Cli
                 Console.WriteLine(str);
                 var filename = Path.GetFileNameWithoutExtension(str);
                 var factory = new MutableByteImageFactory(logger);
-             /*   var reader = new FfmpegVideoReader(new FfmpegVideoReaderArguments
-                {
-                    InputFile = str
-                }, factory, logger);*/
 
                 var directoryName = (File.Exists(args[0])) ? Path.GetDirectoryName(args[0]) : args[0];
 
@@ -76,11 +71,10 @@ namespace imageStacker.Piping.Cli
                     .OrderBy(x => x.Count()).First();
 
                 var reader = new ImageMutliFileReader<MutableByteImage>(logger, factory, new ReaderOptions
-                    {
-                        FolderName = args[0],
-                        Filter = $"*{commonExtension.Key}",
-                    },
-                    true);
+                {
+                    FolderName = args[0],
+                    Filter = $"*{commonExtension.Key}",
+                }, true);
 
                 var processingStrategy = new StackProgressiveStrategy<MutableByteImage>(logger, factory);
 
