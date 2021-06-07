@@ -4,6 +4,7 @@ using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -32,10 +33,7 @@ namespace imageStacker.ffmpeg
             transformBlock = new TransformBlock<(int width, int height, byte[] data), MutableByteImage>(x => GetImageFromBytes(x.width, x.height, x.data), flowOptions);
         }
 
-        public ISourceBlock<MutableByteImage> GetSource()
-        {
-            return transformBlock;
-        }
+        public ISourceBlock<MutableByteImage> GetSource() => transformBlock;
 
         public async Task Work()
         {
@@ -61,7 +59,7 @@ namespace imageStacker.ffmpeg
 
                 var frameSizeInBytes = pixelsPerFrame * bpp;
 
-                var sink = new RawImagePipeSink(frameSizeInBytes, async bytes => await transformBlock.SendAsync((width, height, bytes)));
+                var sink = new RawImagePipeSink(frameSizeInBytes, async bytes => await transformBlock.SendAsync((width, height, bytes.ToArray())));
                 var args = FFMpegArguments
                     .FromFileInput(_arguments.InputFile)
                     .OutputToPipe(sink, options =>
@@ -76,6 +74,9 @@ namespace imageStacker.ffmpeg
 
                 await args.ProcessAsynchronously();
 
+                await sink.Completion.Task;
+
+                transformBlock.Complete();
                 await transformBlock.Completion;
 
                 _logger.WriteLine("finished reading", Verbosity.Info);
@@ -91,8 +92,6 @@ namespace imageStacker.ffmpeg
         }
 
         private MutableByteImage GetImageFromBytes(int width, int height, byte[] bytes)
-        {
-            return _factory.FromBytes(width, height, bytes);
-        }
+            => _factory.FromBytes(width, height, bytes);
     }
 }

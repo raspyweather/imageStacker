@@ -14,20 +14,16 @@ namespace imageStacker.ffmpeg
             this.byteImage = byteImage;
         }
 
-        public int Width { get => byteImage.Width; }
+        public int Width => byteImage.Width;
 
-        public int Height { get => byteImage.Height; }
+        public int Height => byteImage.Height;
 
-        public string Format { get => "bgr24"; }
+        public string Format => "bgr24";
 
         public void Serialize(Stream pipe)
-        {
-            pipe.Write(byteImage.Data, 0, byteImage.Data.Length);
-        }
+            => pipe.Write(byteImage.Data, 0, byteImage.Data.Length);
 
         public Task SerializeAsync(Stream pipe, CancellationToken token)
-        {
-            return pipe.WriteAsync(byteImage.Data, 0, byteImage.Data.Length, token);
-        }
+            => pipe.WriteAsync(byteImage.Data, 0, byteImage.Data.Length, token);
     }
 }

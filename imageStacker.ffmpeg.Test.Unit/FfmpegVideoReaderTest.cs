@@ -18,7 +18,7 @@ namespace imageStacker.ffmpeg.Test.Unit
                 new FfmpegVideoReaderArguments
                 {
                     InputFile = TempFile,
-                    CustomArgs = "-crf 0 -qp 0"
+                    CustomArgs = "-crf 0"
                 },
                 factory,
                 new Logger(TextWriter.Null));

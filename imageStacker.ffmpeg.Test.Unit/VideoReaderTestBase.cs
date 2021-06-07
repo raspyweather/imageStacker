@@ -27,26 +27,12 @@ namespace imageStacker.ffmpeg.Test.Unit
             TempFile = Path.Combine(tempPath, Path.GetRandomFileName() + ".apng");
 
             var args = FFMpegCore.FFMpegArguments
-               .FromFileInput(Path.Combine(tempPath, "%05d.png"), false, args =>
-                args.WithFramerate(1)
-                     .ForcePixelFormat("rgb24")
-                     .WithFramerate(1))
+               .FromFileInput(Path.Combine(tempPath, "%05d.png"), false, args => args.ForcePixelFormat("rgb24"))
                 .OutputToFile(TempFile, true, args =>
                     args.WithSpeedPreset(FFMpegCore.Enums.Speed.VerySlow)
-                        //.WithFramerate(1.0)
-                        //.WithConstantRateFactor(0)
-                        .ForcePixelFormat("rgb24")
-                );
-            try
-            {
-                args.ProcessSynchronously(true);
-            }
-            catch (Exception)
-            {
+                        .ForcePixelFormat("rgb24"));
 
-                throw;
-            }
-
+            args.ProcessSynchronously(true);
         }
     }
 }

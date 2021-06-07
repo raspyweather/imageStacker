@@ -29,7 +29,7 @@ namespace imageStacker.ffmpeg
 
         private readonly ILogger _logger;
 
-        private BufferBlock<(MutableByteImage image, ISaveInfo info)> queue;
+        private readonly BufferBlock<(MutableByteImage image, ISaveInfo info)> queue;
 
         private readonly FfmpegVideoWriterArguments _arguments;
 
@@ -112,11 +112,11 @@ namespace imageStacker.ffmpeg
         {
             try
             {
-                var frame = this.queue.Receive();
-                this.Current = new FfmpegVideoFrame(frame.image);
+                var (image, _) = this.queue.Receive();
+                this.Current = new FfmpegVideoFrame(image);
                 return true;
             }
-            catch(InvalidOperationException)
+            catch (InvalidOperationException)
             {
                 return false;
             }
