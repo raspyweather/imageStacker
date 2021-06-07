@@ -11,14 +11,16 @@ namespace imageStacker.Cli
 
     [Verb("MaxFilter")]
     public class MaxFilterOptions : CommonFilterOptions, IMaxFilterOptions
-    {
-    }
+    { }
+
+    [Verb("CopyFilter")]
+    public class CopyFilterOptions : CommonFilterOptions, ICopyFilterOptions
+    { }
 
 
     [Verb("MinFilter")]
     public class MinFilterOptions : CommonFilterOptions, IMinFilterOptions
-    {
-    }
+    { }
 
     [Verb("AttackDecayFilter")]
     public class AttackDecayFilterOptions : CommonFilterOptions, IAttackDecayOptions
