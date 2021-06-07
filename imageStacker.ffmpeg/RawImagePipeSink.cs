@@ -11,35 +11,45 @@ namespace imageStacker.ffmpeg
         private readonly int _frameSize;
         private readonly Func<byte[], Task> _onFrame;
 
+        public TaskCompletionSource Completion;
+
         public RawImagePipeSink(int frameSizeInBytes, Func<byte[], Task> onFrame)
         {
             _frameSize = frameSizeInBytes;
             _onFrame = onFrame;
+            this.Completion = new TaskCompletionSource();
         }
 
         public string GetFormat()
-        {
-            return string.Empty;
-        }
+            => string.Empty;
+
 
         public async Task ReadAsync(Stream inputStream, CancellationToken cancellationToken)
         {
-            var buffer = new byte[_frameSize];
-            int bufferPos = 0;
+            var bufferAr = new byte[_frameSize];
 
-            while (!cancellationToken.IsCancellationRequested)
+            for (int bufferPos = 0; !cancellationToken.IsCancellationRequested; bufferPos = 0)
             {
                 while (bufferPos < _frameSize)
                 {
-                    var readBytes = await inputStream.ReadAsync(buffer, bufferPos, _frameSize - bufferPos);
+                    var readBytes = await inputStream.ReadAsync(bufferAr.AsMemory(bufferPos, _frameSize - bufferPos), cancellationToken);
                     if (readBytes == 0) // stream end
+                    {
+                        this.Completion.SetResult();
                         return;
+                    }
+
                     bufferPos += readBytes;
                 }
+
                 if (bufferPos != _frameSize)
-                    throw new InvalidOperationException("invalid BufferPos");
-                await _onFrame(buffer);
-                bufferPos = 0;
+                {
+                    var ex = new InvalidOperationException("invalid BufferPos");
+                    this.Completion.SetException(ex);
+                    throw ex;
+                }
+
+                await _onFrame(bufferAr);
             }
         }
     }

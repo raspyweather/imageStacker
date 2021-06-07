@@ -24,7 +24,7 @@ namespace imageStacker.Core
         private readonly TextWriter output;
         private readonly Timer printTimer;
         private readonly Verbosity selectedLevel;
-        private IDictionary<string, Func<string>> queues = new Dictionary<string, Func<string>>();
+        private readonly IDictionary<string, Func<string>> queues = new Dictionary<string, Func<string>>();
 
         public Logger(TextWriter output, Verbosity level = Verbosity.Info)
         {
@@ -75,7 +75,10 @@ namespace imageStacker.Core
 
         public void AddQueue(Func<string> getInfo, string name)
         {
-            queues.Add(name, getInfo);
+            if (!queues.ContainsKey(name))
+            {
+                queues.Add(name, getInfo);
+            }
         }
     }
 }

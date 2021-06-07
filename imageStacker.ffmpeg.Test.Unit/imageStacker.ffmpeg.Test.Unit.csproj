@@ -4,6 +4,8 @@
     <TargetFramework>net5.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
+
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\imageStacker.Core.Test.Unit\imageStacker.Core.Test.Unit.csproj" />
     <ProjectReference Include="..\imageStacker.ffmpeg\imageStacker.ffmpeg.csproj" />
   </ItemGroup>
 

@@ -12,7 +12,6 @@ namespace imageStacker.Core
             : base(logger, factory)
         {
         }
-        private readonly BufferBlock<(T image, ISaveInfo saveInfo)> outputQueue = new BufferBlock<(T image, ISaveInfo saveInfo)>(new DataflowBlockOptions { EnsureOrdered = true, BoundedCapacity = 16 });
 
         protected async Task ReadingThread(IImageReader<T> reader)
         {

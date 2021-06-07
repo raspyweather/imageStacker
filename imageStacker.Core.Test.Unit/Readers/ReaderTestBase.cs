@@ -59,7 +59,7 @@ namespace imageStacker.Core.Test.Unit.Readers
             i.Should().Be(ImagesCount);
         }
 
-        protected void Prepare()
+        protected virtual void Prepare()
         {
             tempPath = Path.Combine(
                 Path.GetTempPath(),

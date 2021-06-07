@@ -6,6 +6,7 @@
 
 ### Input from multiple images
 Directory with Files:
+
     --inputFolder 
     --inputFilter *.JPG
 
@@ -14,6 +15,7 @@ List of Files:
 
 ### Input from Pipe
 Very very beta :)
+
     --inputByPipe
     --inputSize 1920x1080
 
@@ -26,6 +28,7 @@ Very very beta :)
 
 ### Output to Pipe
 Very very beta :)
+
     --outputToPipe
 
 ### Output to images
@@ -36,7 +39,9 @@ Very very beta :)
 ## Processing
 
 ### Modes
+
 #### stackAll
+
 Applies filters to all images, resulting in a single one.
 
     src1,src2,src3,src4,src5 → result_1

@@ -28,6 +28,7 @@ namespace imageStacker.Cli.Test.Unit
         [Theory]
         [InlineData("--filters MaxFilter")]
         [InlineData("--filters MinFilter")]
+        [InlineData("--filters CopyFilter")]
         public void FilterConfiguration_FilterConfig_CreatesRequestedFilter(string input)
         {
             var parameters = new StackAllOptions
@@ -85,7 +86,7 @@ namespace imageStacker.Cli.Test.Unit
         {
             var parameters = new StackAllOptions
             {
-                Filters = "--filters AttackDecayFilter Attack=0.2 Decay=1.0, MaxFilter, MinFilter".Split(' ')
+                Filters = "--filters AttackDecayFilter Attack=0.2 Decay=1.0, MaxFilter, MinFilter, CopyFilter".Split(' ')
             };
 
             var basicEnvironment = new StackingEnvironment();
@@ -94,8 +95,8 @@ namespace imageStacker.Cli.Test.Unit
 
             var createdFilters = basicEnvironment.Filters.Cast<IFilter<MutableByteImage>>().ToList();
 
-            createdFilters.Count.Should().Be(3);
-            createdFilters.Select(x => x.Name).Distinct().Count().Should().Be(3);
+            createdFilters.Count.Should().Be(4);
+            createdFilters.Select(x => x.Name).Distinct().Count().Should().Be(4);
         }
 
         [Theory]
@@ -123,7 +124,8 @@ namespace imageStacker.Cli.Test.Unit
         [InlineData("--filters AttackDecayFilter Name=cookie Attack=1.0 Decay=0.2", "cookie")]
         [InlineData("--filters MaxFilter Name=cookie", "cookie")]
         [InlineData("--filters MinFilter Name=cookie", "cookie")]
-        public void FilterConfiguration_AttackiDecayFilter_ParametersSetCorrectly(string input, string expectedName)
+        [InlineData("--filters CopyFilter Name=cookie", "cookie")]
+        public void FilterConfiguration_FilterNames_ParametersSetCorrectly(string input, string expectedName)
         {
             var parameters = new StackAllOptions
             {
