@@ -106,6 +106,24 @@ namespace imageStacker.Cli
             return environment;
         }
 
+        public static FfmpegVideoEncoderPreset MapInputToPreset(string input)
+        {
+            string lowerInput = input.ToLowerInvariant().Trim();
+            if (new string[] { "fhd", "fullhd" }.Contains(lowerInput))
+            {
+                return FfmpegVideoEncoderPreset.FullHD;
+            }
+            if (new string[] { "4k", "fourk" }.Contains(lowerInput))
+            {
+                return FfmpegVideoEncoderPreset.FourK;
+            }
+            if (new string[] { "archive" }.Contains(lowerInput))
+            {
+                return FfmpegVideoEncoderPreset.Archive;
+            }
+            return FfmpegVideoEncoderPreset.None;
+        }
+
         public static IStackingEnvironment ConfigureOuptutMode(this IStackingEnvironment env, CommonOptions commonOptions)
         {
             if (commonOptions.UseOutputPipe)
@@ -126,7 +144,8 @@ namespace imageStacker.Cli
                     {
                         OutputFile = commonOptions.OutputVideoFile,
                         CustomArgs = commonOptions.OutputVideoOptions,
-                        PathToFfmpeg = commonOptions.FfmpegLocation
+                        PathToFfmpeg = commonOptions.FfmpegLocation,
+                        Preset = MapInputToPreset(commonOptions.OutputPreset)
                     },
                     env.Logger);
                 return env;

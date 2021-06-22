@@ -39,16 +39,6 @@ namespace imageStacker.Cli
 
         bool UseInputPipe { get; set; }
     }
-    public enum InputOption
-    {
-        Files,
-        Stream
-    }
-    public enum OutputOption
-    {
-        File,
-        Stream
-    }
 
     [Verb("test")]
     public class TestOptions : CommonOptions
@@ -118,8 +108,8 @@ namespace imageStacker.Cli
         [Option("outputVideoOptions", HelpText = "ffmpeg Options")]
         public virtual string OutputVideoOptions { get; set; }
 
-        [Option("outputPreset", HelpText = "Presets for output encoding e.g. FHD, 4K")]
-        public virtual string OutputPreset { get; set; }
+        [Option("outputPreset", Required = false, HelpText = "Presets for output encoding e.g. fhd, 4k, archive")]
+        public virtual string OutputPreset { get; set; } = "fhd";
         #endregion
 
         [Option("filters", Required = false, Separator = ',', HelpText = "List of Filters with respective parameters; Example: 'MaxFilter Name=Max,AttackDecayFilter Attack=1.0 Decay=0.2 '")]
