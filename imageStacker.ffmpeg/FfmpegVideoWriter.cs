@@ -46,21 +46,19 @@ namespace imageStacker.ffmpeg
             var source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
 
             var args = FFMpegArguments
-                   .FromPipeInput(source, args =>
-                   {
-                   })
-                   .OutputToFile(_arguments.OutputFile, true, options => options.WithFramerate(_arguments.Framerate)
-                   .UsingMultithreading(true)
-                   .UsingThreads(Environment.ProcessorCount)
-                   .ForcePixelFormat("yuv420p")
-                   .WithVideoCodec("libx264")
-                   .OverwriteExisting()
-                   .WithConstantRateFactor(25)
-                   .WithCustomArgument(_arguments.CustomArgs)
-                   .WithCustomArgument("-profile:v baseline -level 3.0"))
-                   .NotifyOnProgress(
-                       percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
-                       TimeSpan.FromSeconds(1));
+            .FromPipeInput(source, args =>
+            {
+            })
+            .OutputToFile(_arguments.OutputFile, true,
+            options => options.WithFramerate(_arguments.Framerate)
+                .UsingMultithreading(true)
+                .UsingThreads(Environment.ProcessorCount)
+                .UsePreset(_arguments.Preset)
+                .OverwriteExisting()
+                .WithCustomArgument(_arguments.CustomArgs))
+            .NotifyOnProgress(
+                percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
+                TimeSpan.FromSeconds(1));
 
             await args.ProcessAsynchronously(true);
             _logger.WriteLine("finished writing", Verbosity.Info);
@@ -70,25 +68,6 @@ namespace imageStacker.ffmpeg
         public ITargetBlock<(MutableByteImage image, ISaveInfo saveInfo)> GetTarget()
         {
             return queue;
-        }
-    }
-
-    public static class FfmpegVideoWriterPresets
-    {
-        public static FFMpegArgumentOptions UseFHDPreset(this FFMpegArgumentOptions args)
-        {
-            return args.ForcePixelFormat("yuv420p")
-                   .WithVideoCodec("libx264")
-                   .WithConstantRateFactor(25)
-                   .WithCustomArgument("-profile:v baseline -level 3.0 -vf scale=-1:1080");
-        }
-
-        public static FFMpegArgumentOptions Use4KPreset(this FFMpegArgumentOptions args)
-        {
-            return args.ForcePixelFormat("yuv420p")
-                   .WithVideoCodec("libx264")
-                   .WithConstantRateFactor(25)
-                   .WithCustomArgument("-profile:v baseline -level 3.0 -vf scale=-1:2160");
         }
     }
 
@@ -137,5 +116,15 @@ namespace imageStacker.ffmpeg
 
         public string OutputFile { get; set; }
         public string PathToFfmpeg { get; set; }
+
+        public FfmpegVideoEncoderPreset Preset { get; set; }
+    }
+
+    public enum FfmpegVideoEncoderPreset
+    {
+        None = 0,
+        FullHD,
+        FourK,
+        Archive,
     }
 }
