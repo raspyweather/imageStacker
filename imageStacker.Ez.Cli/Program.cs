@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using imageStacker.Cli;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace imageStacker.Ez.Cli
 {
-    class Program
+    partial class Program
     {
         public static async Task Main(string[] args)
         {
@@ -61,9 +62,11 @@ namespace imageStacker.Ez.Cli
 
             var sourceArgs = GetSourceParameter(args);
 
-            { // Create Videos
-                (string filterName, string filterParam)[] filterArgs = {
-                    ("timelapse","CopyFilter"),
+            {   // Create Videos
+                Console.WriteLine("Creating Videos");
+
+                (string filterName, string filterParam)[] videoFilterArgs = {
+                    ("timelapse", "CopyFilter"),
                     ("MinFilter","MinFilter"),
                     ("MaxFilter","MaxFilter"),
                     ("AttackDecay-HF","AttackDecayFilter Attack=1.0,Decay=0.2"),
@@ -74,20 +77,54 @@ namespace imageStacker.Ez.Cli
                     ("AttackDecay-Lav","AttackDecayFilter Attack=0.01,Decay=0.01")
                 };
 
-                Console.WriteLine("Creating Vidoes");
+                static string makeVideoCommand(string filterParam, string sourceArgs, string filename)
+                    => $"stackProgressive {sourceArgs} --filters={filterParam} --outputVideoFile={filename}";
 
-                foreach (var (filterName, filterParam) in filterArgs)
+                foreach (var (filterName, filterParam) in videoFilterArgs)
                 {
                     string filename = System.IO.Path.Combine(dirInfo.FullName, $"i-{filterName}.mp4");
-                    string command = $"stackProgressive {sourceArgs} --filters={filterParam} --outputVideoFile={filename}";
-                    await imageStacker.Cli.Program.Main(command.Split(' '));
+
+                    await imageStacker.Cli.Program.Main(
+                        makeVideoCommand(filterParam, sourceArgs, filename).Split(' '));
                 }
             }
-            { // Create Stacked Images
+            {   // Create Stacked Images
                 Console.WriteLine("Creating Stacked Images");
                 string filters = "MinFilter, MaxFilter";
                 string command = $"stackAll {sourceArgs} --filters={filters} --outputFilePrefix=i --outputFolder={dirInfo.FullName}";
                 await imageStacker.Cli.Program.Main(command.Split(' '));
+            }
+            {   // Create Bird Mode Videos
+
+                (string filterName, string filterParam)[] birdFilterArgs = {
+                    ("MinFilter","MinFilter"),
+                    ("MaxFilter","MaxFilter")
+                };
+
+                int[] gapSizes = { 5, 10, 20, 30 };
+
+                foreach (var gapSize in gapSizes)
+                {
+                    foreach (var (filterName, filterParam) in birdFilterArgs)
+                    {
+                        string filename = System.IO.Path.Combine(dirInfo.FullName, $"bird-{gapSize}-{filterName}.mp4");
+                        await ProcessData(new BirdArguments
+                        {
+                            TempFolder = args.TempFolder,
+                            Filter = filterParam,
+
+                            OutputVideoFile = filename,
+
+                            InputFiles = args.InputFiles,
+                            InputFolder = args.InputFolder,
+                            InputFilter = args.InputFilter,
+                            InputVideoArguments = args.InputVideoArguments,
+                            InputVideoFile = args.InputVideoFile,
+
+                            GapSize = gapSize
+                        });
+                    }
+                }
             }
 
             Console.WriteLine("Done. Thanks :) ");
@@ -149,7 +186,6 @@ namespace imageStacker.Ez.Cli
                     Console.WriteLine($"\n{files.Length} initial frames found");
                 }
 
-
                 /*
                  Gap size 5; 20 frames
                 1,6,11,16
@@ -179,11 +215,11 @@ namespace imageStacker.Ez.Cli
                         Console.WriteLine("No intermediaries to combine!");
                         return;
                     }
+
                     // Create final Video
                     string command = $"stackProgressive --inputFiles={string.Join(" ", intermediaryFiles)} --filters=CopyFilter --outputVideoFile={args.OutputVideoFile}";
                     await imageStacker.Cli.Program.Main(command.Split(' '));
                 }
-
 
                 Console.Write("Cleaning up");
                 System.IO.Directory.Delete(initialFramesFolder, true);
@@ -204,7 +240,6 @@ namespace imageStacker.Ez.Cli
                    (args.InputFiles == null || !args.InputFiles.Any()) ?
                         $"--inputFolder={args.InputFolder} --inputFilter={args.InputFilter}" :
                         $"--inputFiles={string.Join(" ", args.InputFiles)}";
-
 
         private static async Task ProcessData(StarArguments args)
         {
@@ -232,77 +267,6 @@ namespace imageStacker.Ez.Cli
                 string command = $"stackProgressive {sourceArg} --filters=AttackDecayFilter Attack=1.0,Decay=0.5 --outputVideoFile={outputPrefix}-at-HF.mp4";
                 await imageStacker.Cli.Program.Main(command.Split(' '));
             }
-        }
-
-        public interface ISourceArguments
-        {
-            string InputVideoFile { get; }
-            IEnumerable<string> InputFiles { get; }
-            string InputFolder { get; }
-            string InputFilter { get; }
-            string InputVideoArguments { get; }
-        }
-
-        [Verb("stars")]
-        public class StarArguments : GenericArguments
-        {
-            [Option("outputPrefix", Required = false, HelpText = "Partial name of files produced")]
-            public string OutputPrefix { get; set; }
-
-            [Option("outputFolder", Default = ".", HelpText = "Where output files shall be created")]
-            public string OutputFolder { get; set; }
-        }
-
-        [Verb("cars")]
-        public class CarArguments : StarArguments { }
-
-        [Verb("bird")]
-        public class BirdArguments : GenericArguments
-        {
-
-            [Option("gapSize", Required = true, HelpText = "How many pictures to skip between frames")]
-            public int GapSize { get; set; }
-
-            [Option("temp", HelpText = "Tempfolder; specify to use something different than your default temp folder for storing intermediary data")]
-
-            public string TempFolder { get; set; }
-
-            [Option("outputVideoFile", HelpText = "Video output filename; ignores outputFolder parameter")]
-            public string OutputVideoFile { get; set; }
-        }
-
-        [Verb("all")]
-        public class EverythingArguments : GenericArguments
-        {
-            [Option("outputFolder", Default = ".", HelpText = "Where output files shall be created")]
-            public string OutputFolder { get; set; }
-        }
-
-        public abstract class GenericArguments : ISourceArguments
-        {
-            #region InputFromFiles
-            [Option("inputFiles", Required = false, HelpText = "List of image files to be used as stacking input")]
-            public virtual IEnumerable<string> InputFiles { get; set; }
-            #endregion
-
-            #region InputFromFolder
-            [Option("inputFolder", Required = false, HelpText = "Folder to select input files from.")]
-            public string InputFolder { get; set; }
-
-            [Option("inputFilter", HelpText = "Filter for enumerating files of specified inputFolder, e.g. *.jpg")]
-            public string InputFilter { get; set; }
-            #endregion
-
-            #region InputFromVideo
-            [Option("inputVideoFile", Required = false, HelpText = "Video file to extract frames from")]
-            public string InputVideoFile { get; set; }
-
-            [Option("inputVideoArguments", Required = false, HelpText = "Arguments passed to ffmpeg for decoding. See ffmpeg -help for details")]
-            public string InputVideoArguments { get; set; }
-            #endregion
-
-            [Option("filter", Required = false, Separator = ',', HelpText = "List of Filters with respective parameters; Example: 'MaxFilter Name=Max,AttackDecayFilter Attack=1.0 Decay=0.2 '")]
-            public string Filter { get; set; }
         }
     }
 }
