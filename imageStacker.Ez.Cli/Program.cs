@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace imageStacker.Ez.Cli
 {
-    partial class Program
+    public class Program
     {
         public static async Task Main(string[] args)
         {
@@ -222,11 +222,13 @@ namespace imageStacker.Ez.Cli
                 }
 
                 Console.Write("Cleaning up");
-                System.IO.Directory.Delete(initialFramesFolder, true);
+                if (!initialFramesFolder.Equals(args.InputFolder))
+                {
+                    System.IO.Directory.Delete(initialFramesFolder, true);
+                }
+
                 System.IO.Directory.Delete(intermediaryFramesFolder, true);
                 Console.WriteLine(" ...Done!");
-
-                System.Diagnostics.Process.Start("explorer", args.OutputVideoFile);
             }
             catch (Exception e)
             {
