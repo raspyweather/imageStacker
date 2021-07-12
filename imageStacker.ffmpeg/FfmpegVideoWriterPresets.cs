@@ -11,6 +11,13 @@ namespace imageStacker.ffmpeg
                    .WithConstantRateFactor(25)
                    .WithCustomArgument("-profile:v baseline -level 3.0 -vf scale=-1:1080");
         }
+        public static FFMpegArgumentOptions UseHalfPreset(this FFMpegArgumentOptions args)
+        {
+            return args.ForcePixelFormat("yuv420p")
+                   .WithVideoCodec("libx264")
+                   .WithConstantRateFactor(25)
+                   .WithCustomArgument("-profile:v baseline -level 3.0 -vf scale=iw/2:ih/2");
+        }
 
         public static FFMpegArgumentOptions Use4KPreset(this FFMpegArgumentOptions args)
         {
