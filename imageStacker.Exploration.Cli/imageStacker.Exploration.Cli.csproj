@@ -16,7 +16,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\imageStacker.Cli\imageStacker.Cli.csproj" />
-		<ProjectReference Include="..\imageStacker.Piping.Cli\imageStacker.Piping.Cli.csproj" />
 		<ProjectReference Include="..\imageStacker.Core\imageStacker.Core.csproj" />
 	</ItemGroup>
 </Project>
