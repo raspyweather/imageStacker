@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Cli", "imageSt
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Core", "imageStacker.Core\imageStacker.Core.csproj", "{948EAA63-F431-4487-941D-F1B1A98701EA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Exploration.Cli", "imageStacker.Exploration.Cli\imageStacker.Exploration.Cli.csproj", "{BA11E0F1-D33A-45E8-A281-933658A9A331}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Core.Test.Unit", "imageStacker.Core.Test.Unit\imageStacker.Core.Test.Unit.csproj", "{61507C9F-7A0C-4404-8193-E06419C4C2CF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.ffmpeg", "imageStacker.ffmpeg\imageStacker.ffmpeg.csproj", "{31BCE999-5F76-41E1-B5F9-D3DDFEBB9E3D}"
@@ -19,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Cli.Test.Unit"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Ez.Cli", "imageStacker.Ez.Cli\imageStacker.Ez.Cli.csproj", "{177A0240-7A79-41E9-AECF-D605C71DE2F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "imageStacker.Ez.Batch.Cli", "imageStacker.Ez.Batch.Cli\imageStacker.Ez.Batch.Cli.csproj", "{8CEC4F1B-C753-43E1-A15E-C6E37F12661C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Ez.Batch.Cli", "imageStacker.Ez.Batch.Cli\imageStacker.Ez.Batch.Cli.csproj", "{8CEC4F1B-C753-43E1-A15E-C6E37F12661C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,18 +53,6 @@ Global
 		{948EAA63-F431-4487-941D-F1B1A98701EA}.Release|x64.Build.0 = Release|Any CPU
 		{948EAA63-F431-4487-941D-F1B1A98701EA}.Release|x86.ActiveCfg = Release|Any CPU
 		{948EAA63-F431-4487-941D-F1B1A98701EA}.Release|x86.Build.0 = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|x64.ActiveCfg = Debug|x64
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|x64.Build.0 = Debug|x64
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Debug|x86.Build.0 = Debug|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|x64.ActiveCfg = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|x64.Build.0 = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|x86.ActiveCfg = Release|Any CPU
-		{BA11E0F1-D33A-45E8-A281-933658A9A331}.Release|x86.Build.0 = Release|Any CPU
 		{61507C9F-7A0C-4404-8193-E06419C4C2CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{61507C9F-7A0C-4404-8193-E06419C4C2CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{61507C9F-7A0C-4404-8193-E06419C4C2CF}.Debug|x64.ActiveCfg = Debug|x64
