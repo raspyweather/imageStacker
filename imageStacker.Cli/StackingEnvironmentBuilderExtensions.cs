@@ -121,6 +121,10 @@ namespace imageStacker.Cli
             {
                 return FfmpegVideoEncoderPreset.Archive;
             }
+            if (new string[] { "halfsize" }.Contains(lowerInput))
+            {
+                return FfmpegVideoEncoderPreset.HalfSize;
+            }
             return FfmpegVideoEncoderPreset.None;
         }
 
