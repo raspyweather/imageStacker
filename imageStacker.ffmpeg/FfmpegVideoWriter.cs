@@ -35,34 +35,40 @@ namespace imageStacker.ffmpeg
 
         public async Task Work()
         {
-            if (!string.IsNullOrWhiteSpace(_arguments.PathToFfmpeg))
+            try
             {
-                FFMpegOptions.Configure(new FFMpegOptions
+                if (!string.IsNullOrWhiteSpace(_arguments.PathToFfmpeg))
                 {
-                    RootDirectory = _arguments.PathToFfmpeg
-                });
-            }
+                    FFMpegOptions.Configure(new FFMpegOptions
+                    {
+                        RootDirectory = _arguments.PathToFfmpeg
+                    });
+                }
 
-            var source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
+                var source = new RawVideoPipeSource(new MutableByteImageBoundedQueueEnumerator(queue));
 
-            var args = FFMpegArguments
-            .FromPipeInput(source, args =>
+                var args = FFMpegArguments
+                .FromPipeInput(source, args =>
+                {
+                })
+                .OutputToFile(_arguments.OutputFile, true,
+                options => options.WithFramerate(_arguments.Framerate)
+                    .UsingMultithreading(true)
+                    .UsingThreads(Environment.ProcessorCount)
+                    .UsePreset(_arguments.Preset)
+                    .OverwriteExisting()
+                    .WithCustomArgument(_arguments.CustomArgs))
+                .NotifyOnProgress(
+                    percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
+                    TimeSpan.FromSeconds(1));
+
+                await args.ProcessAsynchronously(true);
+                _logger.WriteLine("finished writing", Verbosity.Info);
+                queue.Complete();
+            }catch(Exception e)
             {
-            })
-            .OutputToFile(_arguments.OutputFile, true,
-            options => options.WithFramerate(_arguments.Framerate)
-                .UsingMultithreading(true)
-                .UsingThreads(Environment.ProcessorCount)
-                .UsePreset(_arguments.Preset)
-                .OverwriteExisting()
-                .WithCustomArgument(_arguments.CustomArgs))
-            .NotifyOnProgress(
-                percent => _logger.NotifyFillstate(Convert.ToInt32(percent), "OutputVideoEncoding"),
-                TimeSpan.FromSeconds(1));
 
-            await args.ProcessAsynchronously(true);
-            _logger.WriteLine("finished writing", Verbosity.Info);
-            queue.Complete();
+            }
         }
 
         public ITargetBlock<(MutableByteImage image, ISaveInfo saveInfo)> GetTarget()
@@ -124,6 +130,7 @@ namespace imageStacker.ffmpeg
     {
         None = 0,
         FullHD,
+        HalfSize,
         FourK,
         Archive,
     }
