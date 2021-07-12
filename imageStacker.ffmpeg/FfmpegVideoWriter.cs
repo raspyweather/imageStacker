@@ -65,7 +65,8 @@ namespace imageStacker.ffmpeg
                 await args.ProcessAsynchronously(true);
                 _logger.WriteLine("finished writing", Verbosity.Info);
                 queue.Complete();
-            }catch(Exception e)
+            }
+            catch (Exception)
             {
 
             }

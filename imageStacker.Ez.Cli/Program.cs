@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using imageStacker.Cli;
 using System;
 using System.Collections.Generic;
 using System.Linq;

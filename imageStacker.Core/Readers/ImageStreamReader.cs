@@ -33,7 +33,7 @@ namespace imageStacker.Core.Readers
             this.queue = new BufferBlock<T>(opts).WithLogging("ReadStream");
         }
 
-        public async override Task Work()
+        public override async Task Work()
         {
             var bytesToRead = Width * Height * Image.GetPixelFormatSize(Format);
             while (this.InputStream.CanRead)

@@ -1,6 +1,6 @@
-﻿using Xunit;
-using FluentAssertions;
+﻿using FluentAssertions;
 using imageStacker.ffmpeg;
+using Xunit;
 
 namespace imageStacker.Cli.Test.Unit
 {
