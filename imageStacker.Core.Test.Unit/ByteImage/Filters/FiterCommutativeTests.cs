@@ -1,13 +1,12 @@
 using FluentAssertions;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.ByteImage.Filters;
-using imageStacker.Core.Test.Unit.ByteImage;
 using System;
 using System.Drawing.Imaging;
 using System.Linq;
 using Xunit;
 
-namespace imageStacker.Core.Test.Unit
+namespace imageStacker.Core.Test.Unit.ByteImage.Filters
 {
     public abstract class FilterCommutativeTestBase
     {

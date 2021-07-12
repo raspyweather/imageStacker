@@ -1,6 +1,6 @@
 ﻿using FluentAssertions;
 using imageStacker.Core.ByteImage;
-using imageStacker.Core.Test.Unit.ByteImage;
+using imageStacker.Core.Test.Unit.GenericImage;
 using System;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;

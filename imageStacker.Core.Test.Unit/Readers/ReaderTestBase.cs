@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using imageStacker.Core.Test.Unit.ByteImage;
+using imageStacker.Core.Test.Unit.GenericImage;
 using System;
 using System.IO;
 using System.Threading.Tasks;
