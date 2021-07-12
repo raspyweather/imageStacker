@@ -1,38 +1,38 @@
-﻿using imageStacker.Core.Abstraction;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
+using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage
+namespace imageStacker.Core.UshortImage
 {
-    public class MutableShortImageFactory : IMutableImageFactory<MutableShortImage>
+    public class MutableUshortImageFactory : IMutableImageFactory<MutableUshortImage>
     {
         private readonly ILogger logger;
-        public MutableShortImageFactory(ILogger logger)
+        public MutableUshortImageFactory(ILogger logger)
         {
             this.logger = logger;
         }
 
-        public MutableShortImage Clone(MutableShortImage image)
-            => new MutableShortImage(image.Width, image.Height, image.PixelFormat, image.Data.ToArray());
+        public MutableUshortImage Clone(MutableUshortImage image)
+            => new MutableUshortImage(image.Width, image.Height, image.PixelFormat, image.Data.ToArray());
 
-        public MutableShortImage FromBytes(int width, int height, byte[] data, PixelFormat pixelFormat = PixelFormat.Format48bppRgb)
+        public MutableUshortImage FromBytes(int width, int height, byte[] data, PixelFormat pixelFormat = PixelFormat.Format48bppRgb)
         {
             try
             {
-                short[] sdata = new short[(int)Math.Ceiling(data.Length / 2d)];
+                ushort[] sdata = new ushort[(int)Math.Ceiling(data.Length / 2d)];
                 Buffer.BlockCopy(data, 0, sdata, 0, data.Length);
-                return new MutableShortImage(width, height, pixelFormat, sdata);
+                return new MutableUshortImage(width, height, pixelFormat, sdata);
             }
             catch (Exception e) { logger.LogException(e); throw; }
         }
 
-        public MutableShortImage FromFile(string filename)
+        public MutableUshortImage FromFile(string filename)
             => FromImage(Image.FromFile(filename));
 
-        public MutableShortImage FromImage(Image image)
+        public MutableUshortImage FromImage(Image image)
         {
             try
             {
@@ -54,7 +54,7 @@ namespace imageStacker.Core.ShortImage
             catch (Exception e) { logger.LogException(e); throw; }
         }
 
-        public byte[] ToBytes(MutableShortImage image)
+        public byte[] ToBytes(MutableUshortImage image)
         {
             byte[] data = new byte[image.BytesPerPixel * image.Data.Length];
             Buffer.BlockCopy(image.Data, 0, data, 0, data.Length);
@@ -63,15 +63,16 @@ namespace imageStacker.Core.ShortImage
         // todo: return image meta as well
 
 
-        public Image ToImage(MutableShortImage image)
+        public Image ToImage(MutableUshortImage image)
         {
             var height = image.Height;
             var width = image.Width;
             var pixelFormat = image.PixelFormat;
             var newPicture = new Bitmap(width, height, pixelFormat);
+            var imageDataBytes = ToBytes(image);
             var bmp1Data = newPicture.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, pixelFormat);
             var length = bmp1Data.Stride * bmp1Data.Height;
-            Marshal.Copy(image.Data, 0, bmp1Data.Scan0, image.Data.Length);
+            Marshal.Copy(imageDataBytes, 0, bmp1Data.Scan0, image.Data.Length);
             newPicture.UnlockBits(bmp1Data);
             return newPicture;
         }

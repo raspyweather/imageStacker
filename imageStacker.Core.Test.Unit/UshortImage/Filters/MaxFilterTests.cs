@@ -1,19 +1,19 @@
-﻿using FluentAssertions;
-using imageStacker.Core.ShortImage;
-using imageStacker.Core.ShortImage.Filters;
-using System;
+﻿using System;
 using System.Drawing.Imaging;
 using System.Linq;
+using FluentAssertions;
+using imageStacker.Core.UshortImage;
+using imageStacker.Core.UshortImage.Filters;
 using Xunit;
 
-namespace imageStacker.Core.Test.Unit.ShortImage.Filters
+namespace imageStacker.Core.Test.Unit.UshortImage.Filters
 {
     public abstract class MaxFilterTestBase
     {
 
-        private readonly MutableShortImageProvider provider = new MutableShortImageProvider(8, 8, PixelFormat.Format24bppRgb);
+        private readonly MutableUshortImageProvider provider = new MutableUshortImageProvider(8, 8, PixelFormat.Format24bppRgb);
 
-        protected abstract IFilter<MutableShortImage> Filter { get; }
+        protected abstract IFilter<MutableUshortImage> Filter { get; }
 
         [Fact]
         public void FilterShouldSelectMaxValues()
@@ -31,10 +31,10 @@ namespace imageStacker.Core.Test.Unit.ShortImage.Filters
 
     public class MaxFilterTest : MaxFilterTestBase
     {
-        protected override IFilter<MutableShortImage> Filter => new MaxFilter();
+        protected override IFilter<MutableUshortImage> Filter => new MaxFilter();
     }
     public class MaxVecFilterTest : MaxFilterTestBase
     {
-        protected override IFilter<MutableShortImage> Filter => new MaxVecFilter();
+        protected override IFilter<MutableUshortImage> Filter => new MaxVecFilter();
     }
 }

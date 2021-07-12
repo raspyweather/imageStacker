@@ -1,10 +1,10 @@
-﻿using imageStacker.Core.Abstraction;
-using System.Runtime.Intrinsics;
+﻿using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage.Filters
+namespace imageStacker.Core.UshortImage.Filters
 {
-    public class MinVecFilter : IFilter<MutableShortImage>
+    public class MinVecFilter : IFilter<MutableUshortImage>
     {
         public MinVecFilter(IMinFilterOptions options = null)
         {
@@ -15,13 +15,13 @@ namespace imageStacker.Core.ShortImage.Filters
 
         public bool IsSupported => Sse41.IsSupported;
 
-        public unsafe void Process(MutableShortImage currentPicture, MutableShortImage nextPicture)
+        public unsafe void Process(MutableUshortImage currentPicture, MutableUshortImage nextPicture)
         {
-            int simdSize = Vector128<short>.Count;
+            int simdSize = Vector128<ushort>.Count;
             int length = currentPicture.Data.Length;
 
-            fixed (short* dataPtr1 = currentPicture.Data)
-            fixed (short* dataPtr2 = nextPicture.Data)
+            fixed (ushort* dataPtr1 = currentPicture.Data)
+            fixed (ushort* dataPtr2 = nextPicture.Data)
             {
                 int i = 0;
                 for (; i < length; i += simdSize)

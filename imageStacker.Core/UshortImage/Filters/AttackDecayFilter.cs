@@ -1,11 +1,11 @@
 ﻿using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage.Filters
+namespace imageStacker.Core.UshortImage.Filters
 {
     /// <summary>
     /// Algorithm generously contributed by @patagonaa
     /// </summary>
-    public class AttackDecayFilter : IFilter<MutableShortImage>
+    public class AttackDecayFilter : IFilter<MutableUshortImage>
     {
         public AttackDecayFilter(IAttackDecayOptions options)
         {
@@ -20,15 +20,15 @@ namespace imageStacker.Core.ShortImage.Filters
 
         public bool IsSupported => true;
 
-        public unsafe void Process(MutableShortImage currentPicture, MutableShortImage nextPicture)
+        public unsafe void Process(MutableUshortImage currentPicture, MutableUshortImage nextPicture)
         {
             int length = nextPicture.Data.Length;
-            fixed (short* currentPicPtr = currentPicture.Data)
+            fixed (ushort* currentPicPtr = currentPicture.Data)
             {
-                fixed (short* nextPicPtr = nextPicture.Data)
+                fixed (ushort* nextPicPtr = nextPicture.Data)
                 {
-                    short* currentPxPtr = currentPicPtr;
-                    short* nextPxPtr = nextPicPtr;
+                    ushort* currentPxPtr = currentPicPtr;
+                    ushort* nextPxPtr = nextPicPtr;
 
                     for (int i = 0; i < length; i++)
                     {
@@ -37,7 +37,7 @@ namespace imageStacker.Core.ShortImage.Filters
 
                         var newPixelFactor = workingDataColor < currentColor ? Attack : Decay;
 
-                        var newPixelValue = (short)((currentColor * newPixelFactor) + (workingDataColor * (1 - newPixelFactor)));
+                        var newPixelValue = (ushort)((currentColor * newPixelFactor) + (workingDataColor * (1 - newPixelFactor)));
 
                         *currentPxPtr = newPixelValue;
                         currentPxPtr++;

@@ -1,9 +1,9 @@
-﻿using imageStacker.Core.Abstraction;
-using System;
+﻿using System;
+using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage.Filters
+namespace imageStacker.Core.UshortImage.Filters
 {
-    public class CopyFilter : IFilter<MutableShortImage>
+    public class CopyFilter : IFilter<MutableUshortImage>
     {
         public CopyFilter(ICopyFilterOptions options = null)
         {
@@ -13,7 +13,7 @@ namespace imageStacker.Core.ShortImage.Filters
 
         public bool IsSupported => true;
 
-        public unsafe void Process(MutableShortImage currentImage, MutableShortImage nextPicture)
+        public unsafe void Process(MutableUshortImage currentImage, MutableUshortImage nextPicture)
         {
             int length = nextPicture.Data.Length;
             Buffer.BlockCopy(nextPicture.Data, 0, currentImage.Data, 0, 2 * length);

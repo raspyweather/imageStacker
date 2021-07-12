@@ -1,8 +1,8 @@
 ﻿using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage.Filters
+namespace imageStacker.Core.UshortImage.Filters
 {
-    public class MaxFilter : IFilter<MutableShortImage>
+    public class MaxFilter : IFilter<MutableUshortImage>
     {
         public MaxFilter(IMaxFilterOptions options = null)
         {
@@ -13,15 +13,15 @@ namespace imageStacker.Core.ShortImage.Filters
 
         public bool IsSupported => true;
 
-        public unsafe void Process(MutableShortImage currentPicture, MutableShortImage nextPicture)
+        public unsafe void Process(MutableUshortImage currentPicture, MutableUshortImage nextPicture)
         {
             int length = nextPicture.Data.Length;
-            fixed (short* currentPicPtr = currentPicture.Data)
+            fixed (ushort* currentPicPtr = currentPicture.Data)
             {
-                fixed (short* nextPicPtr = nextPicture.Data)
+                fixed (ushort* nextPicPtr = nextPicture.Data)
                 {
-                    short* currentPxPtr = currentPicPtr;
-                    short* nextPxPtr = nextPicPtr;
+                    ushort* currentPxPtr = currentPicPtr;
+                    ushort* nextPxPtr = nextPicPtr;
 
                     for (int i = 0; i < length; i++)
                     {

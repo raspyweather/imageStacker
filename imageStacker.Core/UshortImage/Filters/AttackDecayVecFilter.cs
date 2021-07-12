@@ -1,12 +1,12 @@
-﻿using imageStacker.Core.Abstraction;
-using System.Runtime.Intrinsics.X86;
+﻿using System.Runtime.Intrinsics.X86;
+using imageStacker.Core.Abstraction;
 
-namespace imageStacker.Core.ShortImage.Filters
+namespace imageStacker.Core.UshortImage.Filters
 {
     /// <summary>
     /// Algorithm generously contributed by @patagonaa
     /// </summary>
-    public class AttackDecayVecFilter : IFilter<MutableShortImage>
+    public class AttackDecayVecFilter : IFilter<MutableUshortImage>
     {
         public AttackDecayVecFilter(IAttackDecayOptions options)
         {
@@ -21,7 +21,7 @@ namespace imageStacker.Core.ShortImage.Filters
 
         public bool IsSupported => Avx.IsSupported;
 
-        public unsafe void Process(MutableShortImage currentPicture, MutableShortImage nextPicture)
+        public unsafe void Process(MutableUshortImage currentPicture, MutableUshortImage nextPicture)
         {
             float MaxFactor = 1;
 
@@ -33,11 +33,11 @@ namespace imageStacker.Core.ShortImage.Filters
             float* MaxFactorPtr = &MaxFactor;
             fixed (float* AttackPtr = attackAr)
             fixed (float* DecayPtr = decayAr)
-            fixed (short* currentPicPtr = currentPicture.Data)
-            fixed (short* nextPicPtr = nextPicture.Data)
+            fixed (ushort* currentPicPtr = currentPicture.Data)
+            fixed (ushort* nextPicPtr = nextPicture.Data)
             {
-                short* currentPxPtr = currentPicPtr;
-                short* nextPxPtr = nextPicPtr;
+                ushort* currentPxPtr = currentPicPtr;
+                ushort* nextPxPtr = nextPicPtr;
 
 
                 int remainingLength = length % 4;
@@ -74,13 +74,13 @@ namespace imageStacker.Core.ShortImage.Filters
                                     Sse41.ConvertToVector128Int32(currentColorPtr))));
 
                     // TODO improve Store
-                    *currentPxPtr = (short)Avx.Extract(result, 0);
+                    *currentPxPtr = (ushort)Avx.Extract(result, 0);
                     currentPxPtr++;
-                    *currentPxPtr = (short)Avx.Extract(result, 1);
+                    *currentPxPtr = (ushort)Avx.Extract(result, 1);
                     currentPxPtr++;
-                    *currentPxPtr = (short)Avx.Extract(result, 2);
+                    *currentPxPtr = (ushort)Avx.Extract(result, 2);
                     currentPxPtr++;
-                    *currentPxPtr = (short)Avx.Extract(result, 3);
+                    *currentPxPtr = (ushort)Avx.Extract(result, 3);
                     currentPxPtr++;
 
                     nextPxPtr += 4;
@@ -94,7 +94,7 @@ namespace imageStacker.Core.ShortImage.Filters
 
                     var newPixelFactor = workingDataColor < currentColor ? Attack : Decay;
 
-                    var newPixelValue = (short)((currentColor * newPixelFactor) + (workingDataColor * (1 - newPixelFactor)));
+                    var newPixelValue = (ushort)((currentColor * newPixelFactor) + (workingDataColor * (1 - newPixelFactor)));
 
                     *currentPxPtr = newPixelValue;
                     currentPxPtr++;
