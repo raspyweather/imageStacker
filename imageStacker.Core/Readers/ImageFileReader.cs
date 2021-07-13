@@ -44,7 +44,7 @@ namespace imageStacker.Core.Readers
             this.queue = new BufferBlock<T>(opts).WithLogging("ReadFile");
         }
 
-        public async override Task Work()
+        public override async Task Work()
         {
             foreach (var filename in filenames)
             {

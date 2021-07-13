@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace imageStacker.Ez.Batch.Cli
 {
-    class Program
+    internal class Program
     {
-        public async static Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             BatchArguments arguments = null;
             var parser = Parser.Default.ParseArguments<BatchArguments>(args)
@@ -80,7 +80,7 @@ namespace imageStacker.Ez.Batch.Cli
     }
 
     [Verb("batch")]
-    class BatchArguments
+    internal class BatchArguments
     {
         [Option("inputFoldersFolder")]
         public string InputFoldersFolder { get; set; }

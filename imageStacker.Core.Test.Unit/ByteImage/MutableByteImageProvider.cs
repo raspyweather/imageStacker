@@ -1,4 +1,5 @@
 ﻿using imageStacker.Core.ByteImage;
+using imageStacker.Core.Test.Unit.GenericImage;
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;

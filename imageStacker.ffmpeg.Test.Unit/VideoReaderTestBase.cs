@@ -1,6 +1,6 @@
 ﻿using imageStacker.Core;
 using imageStacker.Core.ByteImage;
-using imageStacker.Core.Test.Unit.ByteImage;
+using imageStacker.Core.Test.Unit.GenericImage;
 using imageStacker.Core.Test.Unit.Readers;
 using System.IO;
 

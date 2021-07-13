@@ -1,12 +1,12 @@
-﻿using System;
+﻿using FFMpegCore;
+using imageStacker.Core;
+using imageStacker.Core.Abstraction;
+using imageStacker.Core.ByteImage;
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using FFMpegCore;
-using imageStacker.Core;
-using imageStacker.Core.Abstraction;
-using imageStacker.Core.ByteImage;
 
 namespace imageStacker.ffmpeg
 {

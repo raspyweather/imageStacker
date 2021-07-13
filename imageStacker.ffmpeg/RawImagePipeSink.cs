@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace imageStacker.ffmpeg
 {
-    class RawImagePipeSink : IPipeSink
+    internal class RawImagePipeSink : IPipeSink
     {
         private readonly int _frameSize;
         private readonly Func<byte[], Task> _onFrame;

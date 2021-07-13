@@ -43,7 +43,7 @@ namespace imageStacker.Core.Readers
             return queue;
         }
 
-        public async override Task Work()
+        public override async Task Work()
         {
             for (int i = 0; i < count; i++)
             {

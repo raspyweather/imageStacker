@@ -86,7 +86,7 @@ namespace imageStacker.Core
         public CopyStrategy(ILogger logger, IMutableImageFactory<T> factory) : base(logger, factory)
         { }
 
-        protected async override Task ProcessingThread(List<IFilter<T>> filter, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
+        protected override async Task ProcessingThread(List<IFilter<T>> filter, ISourceBlock<T> inputQueue, ITargetBlock<(T image, ISaveInfo saveInfo)> outputQueue)
         {
             int idx = 0;
             while (true)
