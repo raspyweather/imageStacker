@@ -29,7 +29,7 @@ namespace imageStacker.Ez.Batch.Cli
             bool useInputFoldersFolder = System.IO.Directory.Exists(arguments.InputFoldersFolder);
             bool useInputVideosFolder = System.IO.Directory.Exists(arguments.InputVideosFolder);
 
-            if (!useInputFoldersFolder || !useInputVideosFolder)
+            if (!(useInputFoldersFolder || useInputVideosFolder))
             {
                 Console.WriteLine("No existing input defined");
                 return;
