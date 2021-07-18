@@ -39,6 +39,7 @@ namespace imageStacker.ffmpeg
             FfmpegVideoEncoderPreset.FullHD => args.UseFHDPreset(),
             FfmpegVideoEncoderPreset.FourK => args.Use4KPreset(),
             FfmpegVideoEncoderPreset.Archive => args.UseArchivePreset(),
+            FfmpegVideoEncoderPreset.HalfSize => args.UseHalfPreset(),
             _ => args,
         };
     }

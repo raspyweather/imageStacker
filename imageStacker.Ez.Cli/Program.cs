@@ -77,7 +77,7 @@ namespace imageStacker.Ez.Cli
                 };
 
                 static string makeVideoCommand(string filterParam, string sourceArgs, string filename)
-                    => $"stackProgressive {sourceArgs} --filters={filterParam} --outputVideoFile={filename}";
+                    => $"stackProgressive {sourceArgs} --filters={filterParam} --outputVideoFile={filename} --outputPreset=halfSize";
 
                 foreach (var (filterName, filterParam) in videoFilterArgs)
                 {
@@ -100,7 +100,7 @@ namespace imageStacker.Ez.Cli
                     ("MaxFilter","MaxFilter")
                 };
 
-                int[] gapSizes = { 5, 10, 20, 30 };
+                int[] gapSizes = { 5, 10, 20, 30, 60 };
 
                 foreach (var gapSize in gapSizes)
                 {
@@ -113,6 +113,7 @@ namespace imageStacker.Ez.Cli
                             Filter = filterParam,
 
                             OutputVideoFile = filename,
+                            
 
                             InputFiles = args.InputFiles,
                             InputFolder = args.InputFolder,
@@ -216,7 +217,7 @@ namespace imageStacker.Ez.Cli
                     }
 
                     // Create final Video
-                    string command = $"stackProgressive --inputFiles={string.Join(" ", intermediaryFiles)} --filters=CopyFilter --outputVideoFile={args.OutputVideoFile}";
+                    string command = $"stackProgressive --inputFiles={string.Join(" ", intermediaryFiles)} --filters=CopyFilter --outputVideoFile={args.OutputVideoFile} --outputPreset=halfSize";
                     await imageStacker.Cli.Program.Main(command.Split(' '));
                 }
 
