@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "imageStacker.Ez.Batch.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "batch --inputFoldersFolder=I:\\timelapses\\timelapses --inputVideosFolder=I:\\timelapses\\sourceVideos --outputFolder=H:\\timelapses\\output"
+    },
+    "imageStacker.Ez.Batch.Cli test": {
+      "commandName": "Project",
+      "commandLineArgs": "batch --inputFoldersFolder=C:\\Users\\raspyweather\\Documents\\test\\input --outputFolder=C:\\Users\\raspyweather\\Documents\\test\\output"
+    }
+  }
+}
