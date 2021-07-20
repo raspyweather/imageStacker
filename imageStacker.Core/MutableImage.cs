@@ -27,6 +27,8 @@ namespace imageStacker.Core
 
         public int BytesPerPixel => Image.GetPixelFormatSize(PixelFormat);
 
+        public abstract byte[] GetBytes();
+
         public PixelFormat PixelFormat { get; }
     }
 

@@ -1,10 +1,10 @@
-﻿using imageStacker.Core.Abstraction;
-using imageStacker.Core.ByteImage;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
+using imageStacker.Core.Abstraction;
+using imageStacker.Core.ByteImage;
 
 namespace imageStacker.Core
 {
@@ -58,10 +58,7 @@ namespace imageStacker.Core
         }
 
         public byte[] ToBytes(MutableByteImage image)
-        {
-            // todo: return image meta as well
-            return image.Data;
-        }
+            => image.GetBytes();
 
         public Image ToImage(MutableByteImage image)
         {

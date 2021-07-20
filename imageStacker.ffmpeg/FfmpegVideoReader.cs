@@ -1,23 +1,22 @@
-﻿using FFMpegCore;
-using imageStacker.Core;
-using imageStacker.Core.Abstraction;
-using imageStacker.Core.ByteImage;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using FFMpegCore;
+using imageStacker.Core;
+using imageStacker.Core.Abstraction;
 
 namespace imageStacker.ffmpeg
 {
-    public class FfmpegVideoReader : IImageReader<MutableByteImage>
+    public class FfmpegVideoReader : IImageReader<MutableImage>
     {
         private readonly FfmpegVideoReaderArguments _arguments;
         private readonly ILogger _logger;
-        private readonly IMutableImageFactory<MutableByteImage> _factory;
-        private readonly TransformBlock<(int width, int height, byte[] data), MutableByteImage> transformBlock;
+        private readonly IMutableImageFactory<MutableImage> _factory;
+        private readonly TransformBlock<(int width, int height, byte[] data), MutableImage> transformBlock;
 
-        public FfmpegVideoReader(FfmpegVideoReaderArguments arguments, IMutableImageFactory<MutableByteImage> factory, ILogger logger)
+        public FfmpegVideoReader(FfmpegVideoReaderArguments arguments, IMutableImageFactory<MutableImage> factory, ILogger logger)
         {
             _arguments = arguments;
             _logger = logger;
@@ -30,10 +29,10 @@ namespace imageStacker.ffmpeg
                 MaxDegreeOfParallelism = 8
             };
 
-            transformBlock = new TransformBlock<(int width, int height, byte[] data), MutableByteImage>(x => GetImageFromBytes(x.width, x.height, x.data), flowOptions);
+            transformBlock = new TransformBlock<(int width, int height, byte[] data), MutableImage>(x => GetImageFromBytes(x.width, x.height, x.data), flowOptions);
         }
 
-        public ISourceBlock<MutableByteImage> GetSource() => transformBlock;
+        public ISourceBlock<MutableImage> GetSource() => transformBlock;
 
         public async Task Work()
         {
@@ -89,7 +88,7 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        private MutableByteImage GetImageFromBytes(int width, int height, byte[] bytes)
+        private MutableImage GetImageFromBytes(int width, int height, byte[] bytes)
             => _factory.FromBytes(width, height, bytes);
     }
 }
