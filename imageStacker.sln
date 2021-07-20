@@ -19,7 +19,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Ez.Cli", "imag
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Ez.Batch.Cli", "imageStacker.Ez.Batch.Cli\imageStacker.Ez.Batch.Cli.csproj", "{8CEC4F1B-C753-43E1-A15E-C6E37F12661C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "imageStacker.Magick", "imageStacker.Magick\imageStacker.Magick.csproj", "{F870341E-342F-41BA-8E6B-FFC66C0E8E54}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "imageStacker.Magick", "imageStacker.Magick\imageStacker.Magick.csproj", "{F870341E-342F-41BA-8E6B-FFC66C0E8E54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "imageStacker.Magick.Test.Unit", "imageStacker.Magick.Test.Unit\imageStacker.Magick.Test.Unit.csproj", "{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -139,6 +141,18 @@ Global
 		{F870341E-342F-41BA-8E6B-FFC66C0E8E54}.Release|x64.Build.0 = Release|Any CPU
 		{F870341E-342F-41BA-8E6B-FFC66C0E8E54}.Release|x86.ActiveCfg = Release|Any CPU
 		{F870341E-342F-41BA-8E6B-FFC66C0E8E54}.Release|x86.Build.0 = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|x64.Build.0 = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Debug|x86.Build.0 = Debug|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|x64.ActiveCfg = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|x64.Build.0 = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|x86.ActiveCfg = Release|Any CPU
+		{FEB3A241-4A77-48D5-9538-D67E9C14AEAB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

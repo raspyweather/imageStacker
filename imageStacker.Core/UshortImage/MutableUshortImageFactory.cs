@@ -15,10 +15,10 @@ namespace imageStacker.Core.UshortImage
             this.logger = logger;
         }
 
-        public MutableUshortImage Clone(MutableUshortImage image)
+        public virtual MutableUshortImage Clone(MutableUshortImage image)
             => new MutableUshortImage(image.Width, image.Height, image.PixelFormat, image.Data.ToArray());
 
-        public MutableUshortImage FromBytes(int width, int height, byte[] data, PixelFormat pixelFormat = PixelFormat.Format48bppRgb)
+        public virtual MutableUshortImage FromBytes(int width, int height, byte[] data, PixelFormat pixelFormat = PixelFormat.Format48bppRgb)
         {
             try
             {
@@ -29,10 +29,13 @@ namespace imageStacker.Core.UshortImage
             catch (Exception e) { logger.LogException(e); throw; }
         }
 
-        public MutableUshortImage FromFile(string filename)
+        public virtual MutableUshortImage FromData(int width, int height, ushort[] data, PixelFormat pixelFormat = PixelFormat.Format48bppRgb)
+         => new MutableUshortImage(width, height, pixelFormat, data);
+
+        public virtual MutableUshortImage FromFile(string filename)
             => FromImage(Image.FromFile(filename));
 
-        public MutableUshortImage FromImage(Image image)
+        public virtual MutableUshortImage FromImage(Image image)
         {
             try
             {
@@ -54,7 +57,14 @@ namespace imageStacker.Core.UshortImage
             catch (Exception e) { logger.LogException(e); throw; }
         }
 
-        public byte[] ToBytes(MutableUshortImage image)
+        public virtual byte[] ToBytes(MutableUshortImage image)
+        {
+            byte[] data = new byte[image.BytesPerPixel * image.Data.Length];
+            Buffer.BlockCopy(image.Data, 0, data, 0, data.Length);
+            return data;
+        }
+
+        public static byte[] ToBytesS(MutableUshortImage image)
         {
             byte[] data = new byte[image.BytesPerPixel * image.Data.Length];
             Buffer.BlockCopy(image.Data, 0, data, 0, data.Length);
@@ -63,7 +73,7 @@ namespace imageStacker.Core.UshortImage
         // todo: return image meta as well
 
 
-        public Image ToImage(MutableUshortImage image)
+        public virtual Image ToImage(MutableUshortImage image)
         {
             var height = image.Height;
             var width = image.Width;

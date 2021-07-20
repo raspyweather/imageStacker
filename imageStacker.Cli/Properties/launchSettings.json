@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "imageStacker.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "stackContinuous --stackCount=10 --inputVideoFile=\"C:\\Users\\raspyweather\\Videos\\DSCF2053.MOV\" --filters=MaxFilter --outputVideoOptions=\"-vf scale=-1:512\" --outputVideoFile=DSCF2053-hs.mp4"
+    }
+  }
+}

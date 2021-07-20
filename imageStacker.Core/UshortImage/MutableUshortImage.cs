@@ -12,6 +12,13 @@ namespace imageStacker.Core.UshortImage
 
         public ushort[] Data { get; }
 
+        public override byte[] GetBytes()
+        {
+            byte[] data = new byte[BytesPerPixel * Data.Length];
+            System.Buffer.BlockCopy(Data, 0, data, 0, data.Length);
+            return data;
+        }
+
         public MutableUshortImage Clone() => new MutableUshortImage(
                 Width: Width,
                 Height: Height,

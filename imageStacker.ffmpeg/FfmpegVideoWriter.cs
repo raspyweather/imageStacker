@@ -1,18 +1,17 @@
-﻿using FFMpegCore;
-using FFMpegCore.Pipes;
-using imageStacker.Core;
-using imageStacker.Core.Abstraction;
-using imageStacker.Core.ByteImage;
-using imageStacker.Core.Extensions;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using FFMpegCore;
+using FFMpegCore.Pipes;
+using imageStacker.Core;
+using imageStacker.Core.Abstraction;
+using imageStacker.Core.Extensions;
 
 namespace imageStacker.ffmpeg
 {
-    public class FfmpegVideoWriter : IImageWriter<MutableByteImage>
+    public class FfmpegVideoWriter : IImageWriter<MutableImage>
     {
         public FfmpegVideoWriter(FfmpegVideoWriterArguments arguments, ILogger logger)
         {
@@ -24,12 +23,12 @@ namespace imageStacker.ffmpeg
                 BoundedCapacity = 16,
                 EnsureOrdered = true
             };
-            this.queue = new BufferBlock<(MutableByteImage image, ISaveInfo info)>(opts).WithLogging("WriteVideo");
+            this.queue = new BufferBlock<(MutableImage image, ISaveInfo info)>(opts).WithLogging("WriteVideo");
         }
 
         private readonly ILogger _logger;
 
-        private readonly BufferBlock<(MutableByteImage image, ISaveInfo info)> queue;
+        private readonly BufferBlock<(MutableImage image, ISaveInfo info)> queue;
 
         private readonly FfmpegVideoWriterArguments _arguments;
 
@@ -72,7 +71,7 @@ namespace imageStacker.ffmpeg
             }
         }
 
-        public ITargetBlock<(MutableByteImage image, ISaveInfo saveInfo)> GetTarget()
+        public ITargetBlock<(MutableImage image, ISaveInfo saveInfo)> GetTarget()
         {
             return queue;
         }
@@ -80,12 +79,12 @@ namespace imageStacker.ffmpeg
 
     public class MutableByteImageBoundedQueueEnumerator : IEnumerator<IVideoFrame>
     {
-        public MutableByteImageBoundedQueueEnumerator(ISourceBlock<(MutableByteImage image, ISaveInfo info)> queue)
+        public MutableByteImageBoundedQueueEnumerator(ISourceBlock<(MutableImage image, ISaveInfo info)> queue)
         {
             this.queue = queue;
         }
 
-        private readonly ISourceBlock<(MutableByteImage image, ISaveInfo info)> queue;
+        private readonly ISourceBlock<(MutableImage image, ISaveInfo info)> queue;
         public IVideoFrame Current { get; private set; }
 
         object IEnumerator.Current => Current;

@@ -12,7 +12,11 @@ namespace imageStacker.Core.ByteImage
 
         public byte[] Data { get; }
 
-        public MutableByteImage Clone() => new MutableByteImage(
+        public override byte[] GetBytes()
+            => (byte[])Data.Clone();
+
+        public MutableByteImage Clone()
+            => new MutableByteImage(
                 Width: Width,
                 Height: Height,
                 format: PixelFormat,

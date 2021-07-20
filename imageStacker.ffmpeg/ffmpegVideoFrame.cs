@@ -1,29 +1,36 @@
-﻿using FFMpegCore.Pipes;
-using imageStacker.Core.ByteImage;
-using System.IO;
+﻿using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using FFMpegCore.Pipes;
+using imageStacker.Core;
 
 namespace imageStacker.ffmpeg
 {
     public class FfmpegVideoFrame : IVideoFrame
     {
-        private readonly MutableByteImage byteImage;
-        public FfmpegVideoFrame(MutableByteImage byteImage)
+        private readonly MutableImage image;
+
+        public FfmpegVideoFrame(MutableImage byteImage)
         {
-            this.byteImage = byteImage;
+            this.image = byteImage;
         }
 
-        public int Width => byteImage.Width;
+        public int Width => image.Width;
 
-        public int Height => byteImage.Height;
+        public int Height => image.Height;
 
-        public string Format => "bgr24";
+        public string Format => image.BytesPerPixel == 3 ? "bgr24" : "bgr48le";
 
         public void Serialize(Stream pipe)
-            => pipe.Write(byteImage.Data, 0, byteImage.Data.Length);
+        {
+            var data = image.GetBytes();
+            pipe.Write(data, 0, data.Length);
+        }
 
         public Task SerializeAsync(Stream pipe, CancellationToken token)
-            => pipe.WriteAsync(byteImage.Data, 0, byteImage.Data.Length, token);
+        {
+            var data = image.GetBytes();
+            return pipe.WriteAsync(data, 0, data.Length, token);
+        }
     }
 }

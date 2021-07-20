@@ -3,6 +3,7 @@ using imageStacker.Core;
 using imageStacker.Core.Abstraction;
 using imageStacker.Core.ByteImage;
 using imageStacker.Core.Readers;
+using imageStacker.Core.UshortImage;
 using imageStacker.Core.Writers;
 using imageStacker.ffmpeg;
 using System;
@@ -43,7 +44,7 @@ namespace imageStacker.Cli
             env.Logger = CreateLogger(info);
             StaticLogger.Instance = env.Logger;
 
-            env.Factory = new MutableByteImageFactory(env.Logger);
+            env.Factory = new MutableUshortImageFactory(env.Logger);
 
             env.ConfigureFilters(info.Filters);
 
@@ -58,7 +59,7 @@ namespace imageStacker.Cli
 
         public static IStackingEnvironment ConfigureFilters(this IStackingEnvironment environment, IEnumerable<string> optionArgs)
         {
-            environment.Filters = new List<IFilter<MutableByteImage>>();
+            environment.Filters = new List<IFilter<MutableUshortImage>>();
 
             if (optionArgs == null || !optionArgs.Any())
             {
@@ -87,7 +88,7 @@ namespace imageStacker.Cli
 
             parameterGroups.Add(previousList);
 
-            var factory = new MutableByteImageFilterFactory(true);
+            var factory = new MutableUshortImageFilterFactory(true);
 
             foreach (var group in parameterGroups)
             {
@@ -132,7 +133,7 @@ namespace imageStacker.Cli
         {
             if (commonOptions.UseOutputPipe)
             {
-                env.OutputMode = new ImageStreamWriter<MutableByteImage>(env.Logger, env.Factory, Console.OpenStandardOutput());
+                env.OutputMode = new ImageStreamWriter<MutableUshortImage>(env.Logger, env.Factory, Console.OpenStandardOutput());
                 return env;
             }
 
@@ -157,7 +158,7 @@ namespace imageStacker.Cli
 
             if (!string.IsNullOrWhiteSpace(commonOptions.OutputFolder))
             {
-                env.OutputMode = new ImageFileWriter<MutableByteImage>(commonOptions.OutputFilePrefix, commonOptions.OutputFolder, env.Factory);
+                env.OutputMode = new ImageFileWriter<MutableUshortImage>(commonOptions.OutputFilePrefix, commonOptions.OutputFolder, env.Factory);
                 return env;
             }
 
@@ -195,7 +196,7 @@ namespace imageStacker.Cli
 
                 if (int.TryParse(wh[0], out int width) && int.TryParse(wh[1], out int height))
                 {
-                    env.InputMode = new ImageStreamReader<MutableByteImage>(
+                    env.InputMode = new ImageStreamReader<MutableUshortImage>(
                         env.Logger,
                         env.Factory,
                         Console.OpenStandardOutput(width * height * 3),
@@ -214,7 +215,7 @@ namespace imageStacker.Cli
             }
             if (commonOptions.InputFiles != null && commonOptions.InputFiles.Any())
             {
-                env.InputMode = new ImageMutliFileReader<MutableByteImage>(
+                env.InputMode = new ImageMutliFileReader<MutableUshortImage>(
                     env.Logger,
                     env.Factory,
                     new ReaderOptions { Files = commonOptions.InputFiles.ToArray() },
@@ -232,7 +233,7 @@ namespace imageStacker.Cli
                 }
                 else
                 {
-                    env.InputMode = new ImageMutliFileReader<MutableByteImage>(
+                    env.InputMode = new ImageMutliFileReader<MutableUshortImage>(
                         env.Logger,
                         env.Factory,
                         new ReaderOptions

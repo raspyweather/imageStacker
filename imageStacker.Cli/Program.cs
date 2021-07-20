@@ -1,9 +1,9 @@
 ﻿using CommandLine;
 using imageStacker.Core;
 using imageStacker.Core.Abstraction;
-using imageStacker.Core.ByteImage;
-using imageStacker.Core.ByteImage.Filters;
 using imageStacker.Core.Readers;
+using imageStacker.Core.UshortImage;
+using imageStacker.Core.UshortImage.Filters;
 using imageStacker.Core.Writers;
 using System;
 using System.Buffers;
@@ -45,13 +45,13 @@ namespace imageStacker.Cli
                     // processingStrategy = new StackAllStrategy();
                     // might be unsafe
 
-                    env.ProcessingStrategy = new StackAllMergeStrategy<MutableByteImage>(env.Logger, env.Factory);
+                    env.ProcessingStrategy = new StackAllMergeStrategy<MutableUshortImage>(env.Logger, env.Factory);
 
                 })
                 .WithParsed<StackProgressiveOptions>(info =>
                 {
                     env.ConfigureCommonEnvironment(info);
-                    env.ProcessingStrategy = new StackProgressiveStrategy<MutableByteImage>(env.Logger, env.Factory);
+                    env.ProcessingStrategy = new StackProgressiveStrategy<MutableUshortImage>(env.Logger, env.Factory);
                 })
                 .WithParsed<StackContinuousOptions>(info =>
                 {
@@ -63,7 +63,7 @@ namespace imageStacker.Cli
                         env.ThrowMe = true;
                     }
 
-                    env.ProcessingStrategy = new StackContinousStrategy<MutableByteImage>(info.Count, env.Logger, env.Factory);
+                    env.ProcessingStrategy = new StackContinousStrategy<MutableUshortImage>(info.Count, env.Logger, env.Factory);
                 })
                 .WithParsed<TestOptions>(info =>
                 {
@@ -73,9 +73,9 @@ namespace imageStacker.Cli
                     env.Logger = new Logger(Console.Out, Verbosity.Info);
                     StaticLogger.Instance = env.Logger;
 
-                    env.Factory = new MutableByteImageFactory(env.Logger);
+                    env.Factory = new MutableUshortImageFactory(env.Logger);
 
-                    env.InputMode = new TestImageReader<MutableByteImage>
+                    env.InputMode = new TestImageReader<MutableUshortImage>
                         (info.Count,
                         info.Width,
                         info.Height,
@@ -83,11 +83,11 @@ namespace imageStacker.Cli
                         env.Logger,
                         env.Factory);
 
-                    env.OutputMode = new TestImageWriter<MutableByteImage>(env.Logger, env.Factory);
+                    env.OutputMode = new TestImageWriter<MutableUshortImage>(env.Logger, env.Factory);
 
-                    env.ProcessingStrategy = new StackAllSimpleStrategy<MutableByteImage>(env.Logger, env.Factory);
+                    env.ProcessingStrategy = new StackAllSimpleStrategy<MutableUshortImage>(env.Logger, env.Factory);
 
-                    RunBenchmark(info, env.Logger, new MutableByteImageFactory(env.Logger)).Wait();
+                    RunBenchmark(info, env.Logger, new MutableUshortImageFactory(env.Logger)).Wait();
 
                     Process.GetCurrentProcess().Close();
                 }).WithNotParsed(x =>
@@ -122,7 +122,7 @@ namespace imageStacker.Cli
             env.Logger?.Dispose();
         }
 
-        private static async Task RunBenchmark(TestOptions options, ILogger logger, IMutableImageFactory<MutableByteImage> factory)
+        private static async Task RunBenchmark(TestOptions options, ILogger logger, IMutableImageFactory<MutableUshortImage> factory)
         {
             try
             {
@@ -130,7 +130,7 @@ namespace imageStacker.Cli
 
                 logger.WriteLine("Testing Filters", Verbosity.Info);
 
-                foreach (var filter in new List<IFilter<MutableByteImage>> {
+                foreach (var filter in new List<IFilter<MutableUshortImage>> {
                     new MinFilter(),
                     new MinVecFilter(),
                     new MaxFilter(),
@@ -142,18 +142,18 @@ namespace imageStacker.Cli
                     var stopwatch = new Stopwatch();
 
 
-                    var imageReader = new TestImageReader<MutableByteImage>
+                    var imageReader = new TestImageReader<MutableUshortImage>
                                           (options.Count,
                                           options.Width,
                                           options.Height,
                                           PixelFormat.Format24bppRgb,
                                           logger,
                                           factory);
-                    var imageWriter = new ImageStreamWriter<MutableByteImage>(logger, factory, Stream.Null);
-                    var strategy = new StackAllMergeStrategy<MutableByteImage>(logger, factory);
+                    var imageWriter = new ImageStreamWriter<MutableUshortImage>(logger, factory, Stream.Null);
+                    var strategy = new StackAllMergeStrategy<MutableUshortImage>(logger, factory);
 
                     stopwatch.Start();
-                    await strategy.Process(imageReader, new List<IFilter<MutableByteImage>> { filter }, imageWriter);
+                    await strategy.Process(imageReader, new List<IFilter<MutableUshortImage>> { filter }, imageWriter);
                     stopwatch.Stop();
                     logger.WriteLine($"Filter {filter.Name} took {stopwatch.ElapsedMilliseconds}", Verbosity.Info);
                 }
